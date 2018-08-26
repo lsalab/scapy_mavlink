@@ -6,10 +6,6 @@ from scapy.all import bind_layers, TCP, UDP, Packet, Raw, Padding, conf
 from scapy.fields import *
 from .enums import *
 
-conf.min_pkt_size = 270
-conf.padding = 1
-conf.interactive = True
-
 class MAVLinkMessageID(Field):
     def __init__(self, name, default):
         Field.__init__(self, name, default, '<I')
@@ -33,7 +29,7 @@ class MAVLinkMessageID(Field):
 class MAVLink(Raw):
     name = 'MAVLink'
     fields_desc = [
-        XByteField('magic', None),
+        ByteEnumField('magic', None, {0x55: '(0x55) MAVLink v0.9', 0xfe: '(0xfe) MAVLink v1.0', 0xfd: '(0xfd) MAVLink v2.0'}),
         ByteField('length', None),
         ConditionalField(XByteField('incompat_flags', None), lambda pkt: pkt.magic == 0xfd),
         ConditionalField(XByteField('compat_flags', None), lambda pkt: pkt.magic == 0xfd),
@@ -47,7 +43,29 @@ class MAVLink(Raw):
 
     def __init__(self, _pkt=b'', index=0, **kwargs):
         Packet.__init__(self, _pkt, index, kwargs)
-        print(len(_pkt))
+
+    def extract_padding(self, s):
+        return None, s
+
+    def pre_dissect(self, s):
+        offset = 0
+        while offset < len(s) and s[offset] not in [0x55, 0xfe, 0xfd]:
+            offset += 1
+        if offset > 0 and self.underlayer is not None:
+            self.underlayer.add_payload(Padding(s[:offset]))
+        return s[offset:]
+
+    def dissect(self, s):
+        s = self.pre_dissect(s)
+        s = self.do_dissect(s)
+        s = self.post_dissect(s)
+        payl, pad = self.extract_padding(s)
+        self.do_dissect_payload(payl)
+        if pad and conf.padding:
+            if pad[0] in [0x55, 0xfe, 0xfd]:
+                self.add_payload(MAVLink(pad))
+            else:
+                self.add_payload(Padding(pad))
 
 bind_layers(TCP, MAVLink, sport=5760)
 bind_layers(TCP, MAVLink, dport=5760)
