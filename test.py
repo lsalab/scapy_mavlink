@@ -12,7 +12,7 @@ if __name__ == '__main__':
         '0304030305fd0900001301010000000001ff301a340004039802fd1c00001201011e00' +
         '00bb690300aad60b3cf2a8943b8210ab3f10589e3baca91d3ab48f9639ec5bfd' +
         '2000004001011f000051a80100ca494d3fdaa18e3aea38c03b72f0183fde141c' +
-        'bbded4f1bac6879b3a804afe09aa000001010203040506070809bbdc'
+        'bbded4f1bac6879b3a804afe0912010100020c080213c5ab04012c3d'
     )
     packet = Ether(testmsg)/MAVLink(mvmsg)
     packet.show()

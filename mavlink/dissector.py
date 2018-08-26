@@ -5,6 +5,7 @@ import struct
 from scapy.all import bind_layers, TCP, UDP, Packet, Raw, Padding, conf
 from scapy.fields import *
 from .enums import *
+from .messages import *
 
 class MAVLinkMessageID(Field):
     def __init__(self, name, default):
@@ -26,6 +27,33 @@ class MAVLinkMessageID(Field):
         else:
             return s[1:], self.m2i(pkt, struct.unpack(self.fmt, s[:1] + b'\x00\x00\x00')[0])    # 1-byte message ID
 
+class MAVLinkMessage(StrField):
+    __slots__ = ['msgid', 'length_from']
+    holds_packets = 1
+
+    def __init__(self, name, default, remain=0, msgid=None, length_from=None, **kwargs):
+        StrField.__init__(self, name, default, remain=remain)
+        self.msgid = msgid
+        self.length_from = length_from
+    
+    def i2m(self, pkt, i):
+        if i is None:
+            return b""
+        return raw(i)
+
+    def m2i(self, pkt, m):
+        return MESSAGES[self.msgid(pkt)](m)
+
+    def getfield(self, pkt, s):
+        l = self.length_from(pkt)
+        try:
+            i = self.m2i(pkt, s[:l])
+        except Exception:
+            if conf.debug_dissector:
+                raise
+            i = conf.raw_layer(load=s[:l])
+        return s[l:], i
+
 class MAVLink(Raw):
     name = 'MAVLink'
     fields_desc = [
@@ -37,8 +65,10 @@ class MAVLink(Raw):
         XByteField('sysid', None),
         XByteField('compid', None),
         MAVLinkMessageID('msgid', None),
-        XStrLenField('payload', None, length_from=lambda pkt: pkt.length),
+        ConditionalField(XStrLenField('raw_data', None, length_from=lambda pkt: pkt.length), lambda pkt: pkt.msgid not in MESSAGES.keys()),
+        ConditionalField(MAVLinkMessage('message', None, msgid=lambda pkt: pkt.msgid, length_from=lambda pkt: pkt.length), lambda pkt: pkt.msgid in MESSAGES.keys()),
         LEShortField('crc', None),
+        ConditionalField(StrFixedLenField('signature', None, length=13), lambda pkt: pkt.magic == 0xfd and (pkt.incompat_flags & 0x01) > 0x00),
     ]
 
     def __init__(self, _pkt=b'', index=0, **kwargs):
