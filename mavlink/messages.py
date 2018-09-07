@@ -2,8 +2,8 @@
 '''MAVLink message definitions'''
 
 from scapy.packet import Packet
-from scapy.fields import *
-from .fields import *
+from scapy.fields import ByteEnumField, ByteField, FieldListField, LEIntField, LELongField, LEShortEnumField, LEShortField, LESignedIntField, SignedByteField, StrFixedLenField, XByteField
+from .fields import LEFloatField, LESignedShortField
 from .enums import *
 
 # MESSAGE ID: 0
@@ -72,7 +72,7 @@ class Ping(Packet):
     fields_desc = [
         LELongField('time_usec', None),
         LEIntField('seq', None),
-        ByteField('target_system', None),
+        XByteField('target_system', None),
         ByteField('target_component', None)
     ]
 
@@ -85,7 +85,7 @@ class ChangeOperatorControl(Packet):
     '''
     name = 'CHANGE_OPERATOR_CONTROL'
     fields_desc = [
-        ByteField('target_system', None),
+        XByteField('target_system', None),
         ByteField('control_request', None),
         ByteField('version', None),
         StrFixedLenField('passkey', None, length=25),
@@ -350,6 +350,279 @@ class AttitudeQuaternion(Packet):
         LEFloatField('yawspeed', None),
     ]
 
+# MESSAGE ID: 32
+class LocalPositionNED(Packet):
+    '''
+    Messaged ID:   32 -> LOCAL_POSITION_NED
+
+    The filtered local position (e.g. fused computer vision and accelerometers).
+    Coordinate frame is right-handed, Z-axis down (aeronautical frame, NED / north-east-down convention)
+    '''
+    name = 'LOCAL_POSITION_NED'
+    fields_desc = [
+        LEIntField('time_boot_ms', None),
+        LEFloatField('x', None),
+        LEFloatField('y', None),
+        LEFloatField('z', None),
+        LEFloatField('vx', None),
+        LEFloatField('vy', None),
+        LEFloatField('vz', None),
+    ]
+
+# MESSAGE ID: 33
+class GlobalPositionInt(Packet):
+    '''
+    Message ID:    33 -> GLOBAL_POSITION_INT
+
+    The filtered global position (e.g. fused GPS and accelerometers).
+    The position is in GPS-frame (right-handed, Z-up).
+    It is designed as scaled integer message since the resolution of float is not sufficient.
+    '''
+    name = 'GLOBAL_POSITION_INT'
+    fields_desc = [
+        LEIntField('time_boot_ms', None),
+        LESignedIntField('lat', None),
+        LESignedIntField('lon', None),
+        LESignedIntField('alt', None),
+        LESignedIntField('relative_alt', None),
+        LESignedShortField('vx', None),
+        LESignedShortField('vy', None),
+        LESignedShortField('vz', None),
+        LEShortField('hdg', None),
+    ]
+
+# MESSAGE ID: 34
+class RCChannelsScaled(Packet):
+    '''
+    Message ID:    34 -> RC_CHANNELS_SCALED
+
+    The scaled values of the RC channels received: (-100%) -10000, (0%) 0, (100%) 10000.
+    Channels that are inactive should be set to UINT16_MAX.
+    '''
+    name = 'RC_CHANNELS_SCALED'
+    fields_desc = [
+        LEIntField('time_boot_ms', None),
+        ByteField('port', None),
+        LESignedShortField('chan1_scaled', None),
+        LESignedShortField('chan2_scaled', None),
+        LESignedShortField('chan3_scaled', None),
+        LESignedShortField('chan4_scaled', None),
+        LESignedShortField('chan5_scaled', None),
+        LESignedShortField('chan6_scaled', None),
+        LESignedShortField('chan7_scaled', None),
+        LESignedShortField('chan8_scaled', None),
+        ByteField('rssi', None),
+    ]
+
+# MESSAGE ID: 35
+class RCChannelsRaw(Packet):
+    '''
+    Message ID:    35 -> RC_CHANNELS_RAW
+
+    The RAW values of the RC channels received.
+    The standard PPM modulation is as follows: 1000 microseconds: 0%, 2000 microseconds: 100%.
+    A value of UINT16_MAX implies the channel is unused.
+    Individual receivers/transmitters might violate this specification.
+    '''
+    name = 'RC_CHANNELS_RAW'
+    fields_desc = [
+        LEIntField('time_boot_ms', None),
+        ByteField('port', None),
+        LEShortField('chan1_raw', None),
+        LEShortField('chan2_raw', None),
+        LEShortField('chan3_raw', None),
+        LEShortField('chan4_raw', None),
+        LEShortField('chan5_raw', None),
+        LEShortField('chan6_raw', None),
+        LEShortField('chan7_raw', None),
+        LEShortField('chan8_raw', None),
+        ByteField('rssi', None),
+    ]
+
+# MESSAGE ID: 36
+class ServoOutputRaw(Packet):
+    '''
+    Message ID:    36 -> SERVO_OUTPUT_RAW
+
+    The RAW values of the servo outputs (for RC input from the remote, use the RC_CHANNELS messages).
+    The standard PPM modulation is as follows: 1000 microseconds: 0%, 2000 microseconds: 100%.
+    '''
+    name = 'SERVO_OUTPUT_RAW'
+    fields_desc = [
+        LEIntField('time_usec', None),
+        ByteField('port', None),
+        LEShortField('servo1_raw', None),
+        LEShortField('servo2_raw', None),
+        LEShortField('servo3_raw', None),
+        LEShortField('servo4_raw', None),
+        LEShortField('servo5_raw', None),
+        LEShortField('servo6_raw', None),
+        LEShortField('servo7_raw', None),
+        LEShortField('servo8_raw', None),
+        LEShortField('servo9_raw', None),
+        LEShortField('servo10_raw', None),
+        LEShortField('servo11_raw', None),
+        LEShortField('servo12_raw', None),
+        LEShortField('servo13_raw', None),
+        LEShortField('servo14_raw', None),
+        LEShortField('servo15_raw', None),
+        LEShortField('servo16_raw', None),
+    ]
+
+# MESSAGE ID: 37
+class MissionRequestPartialList(Packet):
+    '''
+    Message ID:    37 -> MISSION_REQUEST_PARTIAL_LIST
+
+    Request a partial list of mission items from the system/component.
+    https://mavlink.io/en/protocol/mission.html.
+    If start and end index are the same, just send one waypoint.
+    '''
+    name = 'MISSION_REQUEST_PARTIAL_LIST'
+    fields_desc = [
+        XByteField('target_system', None),
+        XByteField('target_component', None),
+        LESignedShortField('start_index', 0x0000),
+        LESignedShortField('end_index', None),
+        ByteEnumField('mission_type', None, MAV_MISSION_TYPE),
+    ]
+
+# MESSAGE ID: 38
+class MissionWritePartialList(Packet):
+    '''
+    Message ID:    38 -> MISSION_WRITE_PARTIAL_LIST
+
+    This message is sent to the MAV to write a partial list.
+    If start index == end index, only one item will be transmitted / updated.
+    If the start index is NOT 0 and above the current list size, this request should be REJECTED!
+    '''
+    name = 'MISSION_WRITE_PARTIAL_LIST'
+    fields_desc = [
+        XByteField('target_system', None),
+        XByteField('target_component', None),
+        LESignedShortField('start_index', 0x0000),
+        LESignedShortField('end_index', None),
+        ByteEnumField('mission_type', None, MAV_MISSION_TYPE)
+    ]
+
+# MESSAGE ID: 39
+class MissionItem(Packet):
+    '''
+    Message ID:    39 -> MISSION_ITEM
+
+    Message encoding a mission item.
+    This message is emitted to announce the presence of a mission item and to set a mission item on the system.
+    The mission item can be either in x, y, z meters (type: LOCAL) or x:lat, y:lon, z:altitude.
+    Local frame is Z-down, right handed (NED), global frame is Z-up, right handed (ENU).
+    See also https://mavlink.io/en/protocol/mission.html.
+    '''
+    name = 'MISSION_ITEM'
+    fields_desc = [
+        XByteField('target_system', None),
+        XByteField('target_component', None),
+        LEShortField('seq', None),
+        ByteEnumField('frame', None, MAV_FRAME),
+        LEShortEnumField('command', None, MAV_CMD),
+        ByteField('current', None),
+        ByteField('autocontinue', None),
+        LEFloatField('param1', None),
+        LEFloatField('param2', None),
+        LEFloatField('param3', None),
+        LEFloatField('param4', None),
+        LEFloatField('x', None),
+        LEFloatField('y', None),
+        LEFloatField('z', None),
+    ]
+
+# MESSAGE ID: 40
+class MissionRequest(Packet):
+    '''
+    Message ID:    40 ->  MISSION_REQUEST
+
+    Request the information of the mission item with the sequence number seq.
+    The response of the system to this message should be a MISSION_ITEM message.
+    https://mavlink.io/en/protocol/mission.html
+    '''
+    name = 'MISSION_REQUEST'
+    fields_desc = [
+        XByteField('target_system', None),
+        XByteField('target_component', None),
+        LEShortField('seq', None),
+        ByteEnumField('mission_type', None, MAV_MISSION_TYPE),
+    ]
+
+# MESSAGE ID: 41
+class MissionSetCurrent(Packet):
+    '''
+    Message ID:    41 -> MISSION_SET_CURRENT
+
+    Set the mission item with sequence number seq as current item.
+    This means that the MAV will continue to this mission item on the shortest path (not following the mission items in-between).
+    '''
+    name = 'MISSION_SET_CURRENT'
+    fields_desc = [
+        XByteField('target_system', None),
+        XByteField('target_component', None),
+        LEShortField('seq', None),
+    ]
+
+# MESSAGE ID: 42
+class MissionCurrent(Packet):
+    '''
+    Message ID:    42 -> MISSION_CURRENT
+
+    Message that announces the sequence number of the current active mission item.
+    The MAV will fly towards this mission item.
+    '''
+    name = 'MISSION_CURRENT'
+    fields_desc = [
+        LEShortField('seq', None),
+    ]
+
+# MESSAGE ID: 43
+class MissionRequestList(Packet):
+    '''
+    Message ID:    43 -> MISSION_REQUEST_LIST
+
+    Request the overall list of mission items from the system/component.
+    '''
+    name = 'MISSION_REQUEST_LIST'
+    fields_desc = [
+        XByteField('target_system', None),
+        XByteField('target_component', None),
+        ByteEnumField('mission_type', None, MAV_MISSION_TYPE),
+    ]
+
+# MESSAGE ID: 44
+class MissionCount(Packet):
+    '''
+    Message ID:    44 -> MISSION_COUNT
+
+    This message is emitted as response to MISSION_REQUEST_LIST by the MAV and to initiate a write transaction.
+    The GCS can then request the individual mission item based on the knowledge of the total number of waypoints.
+    '''
+    name = 'MISSION_COUNT'
+    fields_desc = [
+        XByteField('target_system', None),
+        XByteField('targer_component', None),
+        LEShortField('count', None),
+        ByteEnumField('mission_type', None, MAV_MISSION_TYPE),
+    ]
+
+# MESSAGE ID: 45
+class MissionClearAll(Packet):
+    '''
+    Message ID:    45 -> MISSION_CLEAR_ALL
+
+    Delete all mission items at once.
+    '''
+    name = 'MISSION_CLEAR_ALL'
+    fields_desc = [
+        XByteField('target_system', None),
+        XByteField('target_component', None),
+        ByteEnumField('mission_type', None, MAV_MISSION_TYPE),
+    ]
+
 MESSAGES = {
     0: Heartbeat,
     1: SysStatus,
@@ -370,5 +643,19 @@ MESSAGES = {
     28: RawPressure,
     29: ScaledPressure,
     30: Attitude,
-    31:AttitudeQuaternion,
+    31: AttitudeQuaternion,
+    32: LocalPositionNED,
+    33: GlobalPositionInt,
+    34: RCChannelsScaled,
+    35: RCChannelsRaw,
+    36: ServoOutputRaw,
+    37: MissionRequestPartialList,
+    38: MissionWritePartialList,
+    39: MissionItem,
+    40: MissionRequest,
+    41: MissionSetCurrent,
+    42: MissionCurrent,
+    43: MissionRequestList,
+    44: MissionCount,
+    45: MissionClearAll,
 }
