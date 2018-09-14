@@ -623,6 +623,283 @@ class MissionClearAll(Packet):
         ByteEnumField('mission_type', None, MAV_MISSION_TYPE),
     ]
 
+# MESSAGE ID: 46
+class MissionItemReached(Packet):
+    '''
+    Message ID:    46 -> MISSION_ITEM_REACHED
+
+    A certain mission item has been reached.
+    The system will either hold this position (or circle on the orbit) or
+    (if the autocontinue on the WP was set) continue to the next waypoint.
+    '''
+    name = 'MISSION_ITEM_REACHED'
+    fields_desc = [
+        LEShortField('seq', None),
+    ]
+
+# MESSAGE ID: 47
+class MissionAck(Packet):
+    '''
+    Message ID:    47 -> MISSION_ACK
+
+    Acknowledgment message during waypoint handling.
+    The type field states if this message is a positive ack (type=0) or if an error happened (type=non-zero).
+    '''
+    name = 'MISSION_ACK'
+    fields_desc = [
+        XByteField('target_system', None),
+        XByteField('target_component', None),
+        ByteEnumField('type', None, MAV_MISSION_RESULT),
+        ByteEnumField('mission_type', None, MAV_MISSION_TYPE),
+    ]
+
+# MESSAGE ID: 48
+class SetGPSGlobalOrigin(Packet):
+    '''
+    Message ID:    48 -> SET_GPS_GLOBAL_ORIGIN
+
+    As local waypoints exist, the global waypoint reference allows to transform between the local coordinate frame and the global (GPS) coordinate frame.
+    This can be necessary when e.g. in- and outdoor settings are connected and the MAV should move from in- to outdoor.
+    '''
+    name = 'SET_GPS_GLOBAL_ORIGIN'
+    fields_desc = [
+        XByteField('target_system', None),
+        LESignedIntField('latitude', None),
+        LESignedIntField('longitude', None),
+        LESignedIntField('altitude', None),
+        LELongField('time_usec', None),
+    ]
+
+# MESSAGE ID: 49
+class GPSGlobalOrigin(Packet):
+    '''
+    Message ID:    49 -> GPS_GLOBAL_ORIGIN
+
+    Once the MAV sets a new GPS-Local correspondence, this message announces the origin (0,0,0) position
+    '''
+    name = 'GPS_GLOBAL_ORIGIN'
+    fields_desc = [
+        LESignedIntField('latitude', None),
+        LESignedIntField('longitude', None),
+        LESignedIntField('altitude', None),
+        LELongField('time_usec', None),
+    ]
+
+# MESSAGE ID: 50
+class ParamMapRC(Packet):
+    '''
+    Message ID:    50 -> PARAM_MAP_RC
+
+    Bind a RC channel to a parameter.
+    The parameter should change according to the RC channel value.
+    '''
+    name = 'PARAM_MAP_RC'
+    fields_desc = [
+        XByteField('target_system', None),
+        XByteField('target_component', None),
+        StrFixedLenField('param_id', None, length=16),
+        LESignedShortField('param_index', None),
+        ByteField('parameter_rc_channel_index', None),
+        LEFloatField('param_value0', None),
+        LEFloatField('scale', None),
+        LEFloatField('param_value_min', None),
+        LEFloatField('param_value_max', None),
+    ]
+
+# MESSAGE ID: 51
+class MissionRequestInt(Packet):
+    '''
+    Message ID:    51 -> MISSION_REQUEST_INT
+
+    Request the information of the mission item with the sequence number seq.
+    The response of the system to this message should be a MISSION_ITEM_INT message. https://mavlink.io/en/protocol/mission.html
+    '''
+    name = 'MISSION_REQUEST_INT'
+    fields_desc = [
+        XByteField('target_system', None),
+        XByteField('target_component', None),
+        LEShortField('seq', None),
+        ByteEnumField('mission_type', None, MAV_MISSION_TYPE)
+    ]
+
+# MESSAGE ID: 54
+class SafetySetAllowedArea(Packet):
+    '''
+    Message ID:    54 -> SAFETY_SET_ALLOWED_AREA
+
+    Set a safety zone (volume), which is defined by two corners of a cube.
+    This message can be used to tell the MAV which setpoints/waypoints to accept and which to reject.
+    Safety areas are often enforced by national or competition regulations.
+    '''
+    name = 'SAFETY_SET_ALLOWED_AREA'
+    fields_desc = [
+        XByteField('target_system', None),
+        XByteField('target_component', None),
+        ByteEnumField('frame', None, MAV_FRAME),
+        LEFloatField('p1x', None),
+        LEFloatField('p1y', None),
+        LEFloatField('p1z', None),
+        LEFloatField('p2x', None),
+        LEFloatField('p2y', None),
+        LEFloatField('p2z', None),
+    ]
+
+# MESSAGE ID: 55
+class SafetyAllowedArea(Packet):
+    '''
+    Message ID:    55 -> SAFETY_ALLOWED_AREA
+
+    Read out the safety zone the MAV currently assumes.
+    '''
+    name = 'SAFETY_ALLOWED_AREA'
+    fields_desc = [
+        ByteEnumField('frame', None, MAV_FRAME),
+        LEFloatField('p1x', None),
+        LEFloatField('p1y', None),
+        LEFloatField('p1z', None),
+        LEFloatField('p2x', None),
+        LEFloatField('p2y', None),
+        LEFloatField('p2z', None),
+    ]
+
+# MESSAGE ID: 61
+class AttitudeQuaternionCOV(Packet):
+    '''
+    Message ID:    61 -> ATTITUDE_QUATERNION_COV
+
+    The attitude in the aeronautical frame (right-handed, Z-down, X-front, Y-right), expressed as quaternion.
+    Quaternion order is w, x, y, z and a zero rotation would be expressed as (1 0 0 0).
+    '''
+    name = 'ATTITUDE_QUATERNION_COV'
+    fields_desc = [
+        LELongField('time_usec', None),
+        FieldListField('q', None, LEFloatField, count_from=lambda pkt: 4),
+        LEFloatField('rollspeed', None),
+        LEFloatField('pitchspeed', None),
+        LEFloatField('yawspeed', None),
+        FieldListField('covariance', None, LEFloatField, count_from=lambda pkt: 9),
+    ]
+
+# MESSAGE ID: 62
+class NAVControllerOutput(Packet):
+    '''
+    Message ID:    62 -> NAV_CONTROLLER_OUTPUT
+
+    The state of the fixed wing navigation and position controller.
+    '''
+    name = 'NAV_CONTROLLER_OUTPUT'
+    fields_desc = [
+        LEFloatField('nav_roll', None),
+        LEFloatField('nav_pitch', None),
+        LESignedShortField('nav_bearing', None),
+        LESignedShortField('target_bearing', None),
+        LEShortField('wp_dist', None),
+        LEFloatField('alt_error', None),
+        LEFloatField('aspd_error', None),
+        LEFloatField('xtrack_error', None),
+    ]
+
+# MESSAGE ID: 63
+class GlobalPositionIntCOV(Packet):
+    '''
+    Message ID:    63 -> GLOBAL_POSITION_INT_COV
+
+    The filtered global position (e.g. fused GPS and accelerometers).
+    The position is in GPS-frame (right-handed, Z-up).
+    It is designed as scaled integer message since the resolution of float is not sufficient.
+    
+    NOTE: This message is intended for onboard networks / companion computers and higher-bandwidth links and optimized for accuracy and completeness.
+    Please use the GLOBAL_POSITION_INT message for a minimal subset.
+    '''
+    name = 'GLOBAL_POSITION_INT_COV'
+    fields_desc = [
+        LELongField('time_usec', None),
+        ByteEnumField('estimator_type', None, MAV_ESTIMATOR_TYPE),
+        LESignedIntField('lat', None),
+        LESignedIntField('lon', None),
+        LESignedIntField('alt', None),
+        LESignedIntField('relative_alt', None),
+        LEFloatField('vx', None),
+        LEFloatField('vy', None),
+        LEFloatField('vz', None),
+        FieldListField('covariance', None, LEFloatField, count_from=lambda pkt: 36),
+    ]
+
+# MESSAGE ID: 64
+class LocalPositionNEDCOV(Packet):
+    '''
+    Message ID:    64 -> LOCAL_POSITION_NED_COV
+
+    The filtered local position (e.g. fused computer vision and accelerometers).
+    Coordinate frame is right-handed, Z-axis down (aeronautical frame, NED / north-east-down convention)
+    '''
+    name = 'LOCAL_POSITION_NED_COV'
+    fields_desc = [
+        LELongField('time_usec', None),
+        ByteEnumField('estimator_type', None, MAV_ESTIMATOR_TYPE),
+        LEFloatField('x', None),
+        LEFloatField('y', None),
+        LEFloatField('z', None),
+        LEFloatField('vx', None),
+        LEFloatField('vy', None),
+        LEFloatField('vz', None),
+        LEFloatField('ax', None),
+        LEFloatField('ay', None),
+        LEFloatField('az', None),
+        FieldListField('covariance', None, LEFloatField, count_from=lambda pkt: 45)
+    ]
+
+# MESSAGE ID: 65
+class RCChannels(Packet):
+    '''
+    Message ID:    65 -> RC_CHANNELS
+
+    The PPM values of the RC channels received.
+    The standard PPM modulation is as follows: 1000 microseconds: 0%, 2000 microseconds: 100%.
+    A value of UINT16_MAX implies the channel is unused.
+    Individual receivers/transmitters might violate this specification.
+    '''
+    name = 'RC_CHANNELS'
+    fields_desc = [
+        LEIntField('time_boot_ms', None),
+        ByteField('chancount', None),
+        LEShortField('chan1_raw', None),
+        LEShortField('chan2_raw', None),
+        LEShortField('chan3_raw', None),
+        LEShortField('chan4_raw', None),
+        LEShortField('chan5_raw', None),
+        LEShortField('chan6_raw', None),
+        LEShortField('chan7_raw', None),
+        LEShortField('chan8_raw', None),
+        LEShortField('chan9_raw', None),
+        LEShortField('chan10_raw', None),
+        LEShortField('chan11_raw', None),
+        LEShortField('chan12_raw', None),
+        LEShortField('chan13_raw', None),
+        LEShortField('chan14_raw', None),
+        LEShortField('chan15_raw', None),
+        LEShortField('chan16_raw', None),
+        LEShortField('chan17_raw', None),
+        LEShortField('chan18_raw', None),
+        ByteField('rssi', None),
+    ]
+
+# MESSAGE ID: 66
+class RequestDataStream(Packet):
+    '''
+    Message ID:    66 -> REQUEST_DATA_STREAM
+
+    Request a data stream.
+    '''
+    name = 'REQUEST_DATA_STREAM'
+    fields_desc = [
+        XByteField('target_system', None),
+        XByteField('target_component', None),
+        XByteField('req_stream_id', None),
+        LEShortField('req_message_rate', None),
+        ByteField('start_stop', None),
+    ]
+
 MESSAGES = {
     0: Heartbeat,
     1: SysStatus,
@@ -658,4 +935,18 @@ MESSAGES = {
     43: MissionRequestList,
     44: MissionCount,
     45: MissionClearAll,
+    46: MissionItemReached,
+    47: MissionAck,
+    48: SetGPSGlobalOrigin,
+    49: GPSGlobalOrigin,
+    50: ParamMapRC,
+    51: MissionRequestInt,
+    54: SafetySetAllowedArea,
+    55: SafetyAllowedArea,
+    61: AttitudeQuaternionCOV,
+    62: NAVControllerOutput,
+    63: GlobalPositionIntCOV,
+    64: LocalPositionNEDCOV,
+    65: RCChannels,
+    66: RequestDataStream,
 }
