@@ -1641,7 +1641,6 @@ MESSAGES = {
     64: LocalPositionNEDCOV,
     65: RCChannels,
     66: RequestDataStream,
-<<<<<<< HEAD
     67: DataStream,
     69: ManualControl,
     70: RCChanelsOverride,
@@ -1673,6 +1672,4 @@ MESSAGES = {
     108: SIMState,
     109: RadioStatus,
     110: FileTransferProtocol,
-=======
->>>>>>> 1f24a1d52c3e6aad4f3a69f0f5a4e2cb2cc6d058
 }
