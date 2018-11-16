@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
+# pylint: disable=C0302
 '''MAVLink message definitions'''
 
 from scapy.packet import Packet
 from scapy.fields import ByteEnumField, ByteField, FieldListField, LEIntField, LELongField, LEShortEnumField, LEShortField, LESignedIntField, SignedByteField, StrFixedLenField, XByteField
-from .fields import LEFloatField, LESignedShortField
+from .fields import LEFloatField, XLELongField, LESignedShortField, XLEShortField
 from .enums import *
 
 # MESSAGE ID: 0
@@ -623,6 +624,970 @@ class MissionClearAll(Packet):
         ByteEnumField('mission_type', None, MAV_MISSION_TYPE),
     ]
 
+# MESSAGE ID: 46
+class MissionItemReached(Packet):
+    '''
+    Message ID:    46 -> MISSION_ITEM_REACHED
+
+    A certain mission item has been reached.
+    The system will either hold this position (or circle on the orbit) or
+    (if the autocontinue on the WP was set) continue to the next waypoint.
+    '''
+    name = 'MISSION_ITEM_REACHED'
+    fields_desc = [
+        LEShortField('seq', None),
+    ]
+
+# MESSAGE ID: 47
+class MissionAck(Packet):
+    '''
+    Message ID:    47 -> MISSION_ACK
+
+    Acknowledgment message during waypoint handling.
+    The type field states if this message is a positive ack (type=0) or if an error happened (type=non-zero).
+    '''
+    name = 'MISSION_ACK'
+    fields_desc = [
+        XByteField('target_system', None),
+        XByteField('target_component', None),
+        ByteEnumField('type', None, MAV_MISSION_RESULT),
+        ByteEnumField('mission_type', None, MAV_MISSION_TYPE),
+    ]
+
+# MESSAGE ID: 48
+class SetGPSGlobalOrigin(Packet):
+    '''
+    Message ID:    48 -> SET_GPS_GLOBAL_ORIGIN
+
+    As local waypoints exist, the global waypoint reference allows to transform between the local coordinate frame and the global (GPS) coordinate frame.
+    This can be necessary when e.g. in- and outdoor settings are connected and the MAV should move from in- to outdoor.
+    '''
+    name = 'SET_GPS_GLOBAL_ORIGIN'
+    fields_desc = [
+        XByteField('target_system', None),
+        LESignedIntField('latitude', None),
+        LESignedIntField('longitude', None),
+        LESignedIntField('altitude', None),
+        LELongField('time_usec', None),
+    ]
+
+# MESSAGE ID: 49
+class GPSGlobalOrigin(Packet):
+    '''
+    Message ID:    49 -> GPS_GLOBAL_ORIGIN
+
+    Once the MAV sets a new GPS-Local correspondence, this message announces the origin (0,0,0) position
+    '''
+    name = 'GPS_GLOBAL_ORIGIN'
+    fields_desc = [
+        LESignedIntField('latitude', None),
+        LESignedIntField('longitude', None),
+        LESignedIntField('altitude', None),
+        LELongField('time_usec', None),
+    ]
+
+# MESSAGE ID: 50
+class ParamMapRC(Packet):
+    '''
+    Message ID:    50 -> PARAM_MAP_RC
+
+    Bind a RC channel to a parameter.
+    The parameter should change according to the RC channel value.
+    '''
+    name = 'PARAM_MAP_RC'
+    fields_desc = [
+        XByteField('target_system', None),
+        XByteField('target_component', None),
+        StrFixedLenField('param_id', None, length=16),
+        LESignedShortField('param_index', None),
+        ByteField('parameter_rc_channel_index', None),
+        LEFloatField('param_value0', None),
+        LEFloatField('scale', None),
+        LEFloatField('param_value_min', None),
+        LEFloatField('param_value_max', None),
+    ]
+
+# MESSAGE ID: 51
+class MissionRequestInt(Packet):
+    '''
+    Message ID:    51 -> MISSION_REQUEST_INT
+
+    Request the information of the mission item with the sequence number seq.
+    The response of the system to this message should be a MISSION_ITEM_INT message. https://mavlink.io/en/protocol/mission.html
+    '''
+    name = 'MISSION_REQUEST_INT'
+    fields_desc = [
+        XByteField('target_system', None),
+        XByteField('target_component', None),
+        LEShortField('seq', None),
+        ByteEnumField('mission_type', None, MAV_MISSION_TYPE)
+    ]
+
+# MESSAGE ID: 54
+class SafetySetAllowedArea(Packet):
+    '''
+    Message ID:    54 -> SAFETY_SET_ALLOWED_AREA
+
+    Set a safety zone (volume), which is defined by two corners of a cube.
+    This message can be used to tell the MAV which setpoints/waypoints to accept and which to reject.
+    Safety areas are often enforced by national or competition regulations.
+    '''
+    name = 'SAFETY_SET_ALLOWED_AREA'
+    fields_desc = [
+        XByteField('target_system', None),
+        XByteField('target_component', None),
+        ByteEnumField('frame', None, MAV_FRAME),
+        LEFloatField('p1x', None),
+        LEFloatField('p1y', None),
+        LEFloatField('p1z', None),
+        LEFloatField('p2x', None),
+        LEFloatField('p2y', None),
+        LEFloatField('p2z', None),
+    ]
+
+# MESSAGE ID: 55
+class SafetyAllowedArea(Packet):
+    '''
+    Message ID:    55 -> SAFETY_ALLOWED_AREA
+
+    Read out the safety zone the MAV currently assumes.
+    '''
+    name = 'SAFETY_ALLOWED_AREA'
+    fields_desc = [
+        ByteEnumField('frame', None, MAV_FRAME),
+        LEFloatField('p1x', None),
+        LEFloatField('p1y', None),
+        LEFloatField('p1z', None),
+        LEFloatField('p2x', None),
+        LEFloatField('p2y', None),
+        LEFloatField('p2z', None),
+    ]
+
+# MESSAGE ID: 61
+class AttitudeQuaternionCOV(Packet):
+    '''
+    Message ID:    61 -> ATTITUDE_QUATERNION_COV
+
+    The attitude in the aeronautical frame (right-handed, Z-down, X-front, Y-right), expressed as quaternion.
+    Quaternion order is w, x, y, z and a zero rotation would be expressed as (1 0 0 0).
+    '''
+    name = 'ATTITUDE_QUATERNION_COV'
+    fields_desc = [
+        LELongField('time_usec', None),
+        FieldListField('q', None, LEFloatField, count_from=lambda pkt: 4),
+        LEFloatField('rollspeed', None),
+        LEFloatField('pitchspeed', None),
+        LEFloatField('yawspeed', None),
+        FieldListField('covariance', None, LEFloatField, count_from=lambda pkt: 9),
+    ]
+
+# MESSAGE ID: 62
+class NAVControllerOutput(Packet):
+    '''
+    Message ID:    62 -> NAV_CONTROLLER_OUTPUT
+
+    The state of the fixed wing navigation and position controller.
+    '''
+    name = 'NAV_CONTROLLER_OUTPUT'
+    fields_desc = [
+        LEFloatField('nav_roll', None),
+        LEFloatField('nav_pitch', None),
+        LESignedShortField('nav_bearing', None),
+        LESignedShortField('target_bearing', None),
+        LEShortField('wp_dist', None),
+        LEFloatField('alt_error', None),
+        LEFloatField('aspd_error', None),
+        LEFloatField('xtrack_error', None),
+    ]
+
+# MESSAGE ID: 63
+class GlobalPositionIntCOV(Packet):
+    '''
+    Message ID:    63 -> GLOBAL_POSITION_INT_COV
+
+    The filtered global position (e.g. fused GPS and accelerometers).
+    The position is in GPS-frame (right-handed, Z-up).
+    It is designed as scaled integer message since the resolution of float is not sufficient.
+
+    NOTE: This message is intended for onboard networks / companion computers and higher-bandwidth links and optimized for accuracy and completeness.
+    Please use the GLOBAL_POSITION_INT message for a minimal subset.
+    '''
+    name = 'GLOBAL_POSITION_INT_COV'
+    fields_desc = [
+        LELongField('time_usec', None),
+        ByteEnumField('estimator_type', None, MAV_ESTIMATOR_TYPE),
+        LESignedIntField('lat', None),
+        LESignedIntField('lon', None),
+        LESignedIntField('alt', None),
+        LESignedIntField('relative_alt', None),
+        LEFloatField('vx', None),
+        LEFloatField('vy', None),
+        LEFloatField('vz', None),
+        FieldListField('covariance', None, LEFloatField, count_from=lambda pkt: 36),
+    ]
+
+# MESSAGE ID: 64
+class LocalPositionNEDCOV(Packet):
+    '''
+    Message ID:    64 -> LOCAL_POSITION_NED_COV
+
+    The filtered local position (e.g. fused computer vision and accelerometers).
+    Coordinate frame is right-handed, Z-axis down (aeronautical frame, NED / north-east-down convention)
+    '''
+    name = 'LOCAL_POSITION_NED_COV'
+    fields_desc = [
+        LELongField('time_usec', None),
+        ByteEnumField('estimator_type', None, MAV_ESTIMATOR_TYPE),
+        LEFloatField('x', None),
+        LEFloatField('y', None),
+        LEFloatField('z', None),
+        LEFloatField('vx', None),
+        LEFloatField('vy', None),
+        LEFloatField('vz', None),
+        LEFloatField('ax', None),
+        LEFloatField('ay', None),
+        LEFloatField('az', None),
+        FieldListField('covariance', None, LEFloatField, count_from=lambda pkt: 45)
+    ]
+
+# MESSAGE ID: 65
+class RCChannels(Packet):
+    '''
+    Message ID:    65 -> RC_CHANNELS
+
+    The PPM values of the RC channels received.
+    The standard PPM modulation is as follows: 1000 microseconds: 0%, 2000 microseconds: 100%.
+    A value of UINT16_MAX implies the channel is unused.
+    Individual receivers/transmitters might violate this specification.
+    '''
+    name = 'RC_CHANNELS'
+    fields_desc = [
+        LEIntField('time_boot_ms', None),
+        ByteField('chancount', None),
+        LEShortField('chan1_raw', None),
+        LEShortField('chan2_raw', None),
+        LEShortField('chan3_raw', None),
+        LEShortField('chan4_raw', None),
+        LEShortField('chan5_raw', None),
+        LEShortField('chan6_raw', None),
+        LEShortField('chan7_raw', None),
+        LEShortField('chan8_raw', None),
+        LEShortField('chan9_raw', None),
+        LEShortField('chan10_raw', None),
+        LEShortField('chan11_raw', None),
+        LEShortField('chan12_raw', None),
+        LEShortField('chan13_raw', None),
+        LEShortField('chan14_raw', None),
+        LEShortField('chan15_raw', None),
+        LEShortField('chan16_raw', None),
+        LEShortField('chan17_raw', None),
+        LEShortField('chan18_raw', None),
+        ByteField('rssi', None),
+    ]
+
+# MESSAGE ID: 66
+class RequestDataStream(Packet):
+    '''
+    Message ID:    66 -> REQUEST_DATA_STREAM
+
+    Request a data stream.
+    '''
+    name = 'REQUEST_DATA_STREAM'
+    fields_desc = [
+        XByteField('target_system', None),
+        XByteField('target_component', None),
+        XByteField('req_stream_id', None),
+        LEShortField('req_message_rate', None),
+        ByteField('start_stop', None),
+    ]
+
+# MESSAGE ID: 67
+class DataStream(Packet):
+    '''
+    Message ID:    67 -> DATA_STREAM
+
+    Data stream status information.
+    '''
+    name = 'DATA_STREAM'
+    fields_desc = [
+        XByteField('stream_id', None),
+        LEShortField('message_rate', None),
+        ByteField('on_off', None),
+    ]
+
+# MESSAGE ID: 69
+class ManualControl(Packet):
+    '''
+    Message ID:    69 -> MANUAL_CONTROL
+
+    This message provides an API for manually controlling the vehicle using standard
+    joystick axes nomenclature, along with a joystick-like input device.
+    '''
+    name = 'MANUAL_CONTROL'
+    fields_desc = [
+        XByteField('target', None),
+        LESignedShortField('x', None),
+        LESignedShortField('y', None),
+        LESignedShortField('z', None),
+        LESignedShortField('r', None),
+        LEShortField('buttons', None),
+    ]
+
+# MESSAGE ID: 70
+class RCChanelsOverride(Packet):
+    '''
+    Message ID:    70 -> RC_CHANNELS_OVERRIDE
+
+    The RAW values of the RC channels sent to the MAV to override info received from the RC radio.
+    A value of UINT16_MAX means no change to that channel.
+    A value of 0 means control of that channel should be released back to the RC radio.
+    The standard PPM modulation is as follows: 1000 microseconds: 0%, 2000 microseconds: 100%.
+    Individual receivers/transmitters might violate this specification.
+    '''
+    name = 'RC_CHANNELS_OVERRIDE'
+    fields_desc = [
+        XByteField('target_system', None),
+        XByteField('target_component', None),
+        LEShortField('chan1_raw', None),
+        LEShortField('chan2_raw', None),
+        LEShortField('chan3_raw', None),
+        LEShortField('chan4_raw', None),
+        LEShortField('chan5_raw', None),
+        LEShortField('chan6_raw', None),
+        LEShortField('chan7_raw', None),
+        LEShortField('chan8_raw', None),
+        LEShortField('chan9_raw', None),
+        LEShortField('chan10_raw', None),
+        LEShortField('chan11_raw', None),
+        LEShortField('chan12_raw', None),
+        LEShortField('chan13_raw', None),
+        LEShortField('chan14_raw', None),
+        LEShortField('chan15_raw', None),
+        LEShortField('chan16_raw', None),
+        LEShortField('chan17_raw', None),
+        LEShortField('chan18_raw', None),
+    ]
+
+# MESSAGE ID: 73
+class MissionItemInt(Packet):
+    '''
+    Message ID:    73 -> MISSION_ITEM_INT
+
+    Message encoding a mission item.
+    This message is emitted to announce the presence of a mission item and to set a mission item on the system.
+    The mission item can be either in x, y, z meters (type: LOCAL) or x:lat, y:lon, z:altitude.
+    Local frame is Z-down, right handed (NED), global frame is Z-up, right handed (ENU).
+    See also https://mavlink.io/en/protocol/mission.html.
+    '''
+    name = 'MISSION_ITEM_INT'
+    fields_desc = [
+        XByteField('target_system', None),
+        XByteField('target_component', None),
+        LEShortField('seq', None),
+        ByteEnumField('frame', None, MAV_FRAME),
+        LEShortEnumField('command', None, MAV_CMD),
+        ByteField('current', None),
+        ByteField('autocontinue', None),
+        LEFloatField('param1', None),
+        LEFloatField('param2', None),
+        LEFloatField('param3', None),
+        LEFloatField('param4', None),
+        LESignedIntField('x', None),
+        LESignedIntField('y', None),
+        LEFloatField('z', None),
+        ByteEnumField('mission_type', None, MAV_MISSION_TYPE),
+    ]
+
+# MESSAGE ID: 74
+class VFRHUD(Packet):
+    '''
+    Message ID:    74 -> VFR_HUD
+
+    Metrics typically displayed on a HUD for fixed wing aircraft.
+    '''
+    name = 'VFR_HUD'
+    fields_desc = [
+        LEFloatField('airspeed', None),
+        LEFloatField('groundspeed', None),
+        LESignedShortField('heading', None),
+        LEShortField('throttle', None),
+        LEFloatField('alt', None),
+        LEFloatField('climb', None),
+    ]
+
+# MESSAGE ID: 75
+class CommandInt(Packet):
+    '''
+    Message ID:    75 -> COMMAND_INT
+
+    Message encoding a command with parameters as scaled integers. Scaling depends on the actual command value.
+    '''
+    name = 'COMMAND_INT'
+    fields_desc = [
+        XByteField('target_system', None),
+        XByteField('target_component', None),
+        ByteEnumField('frame', None, MAV_FRAME),
+        LEShortEnumField('command', None, MAV_CMD),
+        ByteField('current', None),
+        ByteField('autocontinue', None),
+        LEFloatField('param1', None),
+        LEFloatField('param2', None),
+        LEFloatField('param3', None),
+        LEFloatField('param4', None),
+        LESignedIntField('x', None),
+        LESignedIntField('y', None),
+        LEFloatField('z', None),
+    ]
+
+# MESSAGE ID: 76
+class CommandLong(Packet):
+    '''
+    Message ID:    76 -> COMMAND_LONG
+
+    Send a command with up to seven parameters to the MAV
+    '''
+    name = 'COMMAND_LONG'
+    fields_desc = [
+        XByteField('target_system', None),
+        XByteField('target_component', None),
+        LEShortEnumField('command', None, MAV_CMD),
+        ByteField('confirmation', None),
+        LEFloatField('param1', None),
+        LEFloatField('param2', None),
+        LEFloatField('param3', None),
+        LEFloatField('param4', None),
+        LEFloatField('param5', None),
+        LEFloatField('param6', None),
+        LEFloatField('param7', None),
+    ]
+
+# MESSAGE ID: 77
+class CommandAck(Packet):
+    '''
+    Message ID:    77 -> COMMAND_ACK
+
+    Report status of a command. Includes feedback whether the command was executed.
+    '''
+    name = 'COMMAND_ACK'
+    fields_desc = [
+        LEShortEnumField('command', None, MAV_CMD),
+        ByteEnumField('result', None, MAV_RESULT),
+        ByteField('progress', None),
+        LEIntField('result_param2', None),
+        XByteField('target_system', None),
+        XByteField('target_component', None)
+    ]
+
+# MESSAGE ID: 81
+class ManualSetpoint(Packet):
+    '''
+    Message ID:    81 -> MANUAL_SETPOINT
+
+    Setpoint in roll, pitch, yaw and thrust from the operator
+    '''
+    name = 'MANUAL_SETPOINT'
+    fields_desc = [
+        LEIntField('time_boot_ms', None),
+        LEFloatField('roll', None),
+        LEFloatField('pitch', None),
+        LEFloatField('yaw', None),
+        LEFloatField('thrust', None),
+        ByteField('mode_switch', None),
+        ByteField('manual_override_switch', None),
+    ]
+
+# MESSAGE ID: 82
+class SetAttitudeTarget(Packet):
+    '''
+    Message ID:    82 -> SET_ATTITUDE_TARGET
+
+    Sets a desired vehicle attitude.
+    Used by an external controller to command the vehicle (manual controller or other system).
+    '''
+    name = 'SET_ATTITUDE_TARGET'
+    fields_desc = [
+        LEIntField('time_boot_ms', None),
+        XByteField('target_system', None),
+        XByteField('target_component', None),
+        XByteField('type_mask', 0x00),
+        FieldListField('q', None, LEFloatField, count_from=lambda pkt: 4),
+        LEFloatField('body_roll_rate', None),
+        LEFloatField('body_pitch_rate', None),
+        LEFloatField('body_raw_rate', None),
+        LEFloatField('thrust', None),
+    ]
+
+# MESSAGE ID: 83
+class AttitudeTarget(Packet):
+    '''
+    Message ID:    83 -> ATTITUDE_TARGET
+
+    Reports the current commanded attitude of the vehicle as specified by the autopilot.
+    This should match the commands sent in a SET_ATTITUDE_TARGET message if the vehicle is being controlled this way.
+    '''
+    name = 'ATTITUDE_TARGET'
+    fields_desc = [
+        LEIntField('time_boot_ms', None),
+        XByteField('type_mask', 0x00),
+        FieldListField('q', None, LEFloatField, count_from=lambda pkt: 4),
+        LEFloatField('body_roll_rate', None),
+        LEFloatField('body_pitch_rate', None),
+        LEFloatField('body_raw_rate', None),
+        LEFloatField('thrust', None),
+    ]
+
+# MESSAGE ID: 84
+class SetPositionTargetLocalNED(Packet):
+    '''
+    Message ID:    84 -> SET_POSITION_TARGET_LOCAL_NED
+
+    Sets a desired vehicle position in a local north-east-down coordinate frame.
+    Used by an external controller to command the vehicle (manual controller or other system).
+    '''
+    name = 'SET_POSITION_TARGET_LOCAL_NED'
+    fields_desc = [
+        LEIntField('time_boot_ms', None),
+        XByteField('target_system', None),
+        XByteField('target_component', None),
+        ByteEnumField('coordinate_frame', 0x01, MAV_FRAME),
+        XLEShortField('type_mask', 0x0000),
+        LEFloatField('x', None),
+        LEFloatField('y', None),
+        LEFloatField('z', None),
+        LEFloatField('vx', None),
+        LEFloatField('vy', None),
+        LEFloatField('vz', None),
+        LEFloatField('afx', None),
+        LEFloatField('afy', None),
+        LEFloatField('afz', None),
+        LEFloatField('yaw', None),
+        LEFloatField('yaw_rate', None),
+    ]
+
+# MESSAGE ID: 85
+class PositionTargetLocalNED(Packet):
+    '''
+    Message ID:    85 -> POSITION_TARGET_LOCAL_NED
+
+    Reports the current commanded vehicle position, velocity, and acceleration as specified by the autopilot.
+    This should match the commands sent in SET_POSITION_TARGET_LOCAL_NED if the vehicle is being controlled this way.
+    '''
+    name = 'POSITION_TARGET_LOCAL_NED'
+    fields_desc = [
+        LEIntField('time_boot_ms', None),
+        ByteEnumField('coordinate_frame', None, MAV_FRAME),
+        XLEShortField('type_mask', 0x0000),
+        LEFloatField('x', None),
+        LEFloatField('y', None),
+        LEFloatField('z', None),
+        LEFloatField('vx', None),
+        LEFloatField('vy', None),
+        LEFloatField('vz', None),
+        LEFloatField('afx', None),
+        LEFloatField('afy', None),
+        LEFloatField('afz', None),
+        LEFloatField('yaw', None),
+        LEFloatField('yaw_rate', None),
+    ]
+
+# MESSAGE ID: 86
+class SetPositionTargetGlobalInt(Packet):
+    '''
+    Message ID:    86 -> SET_POSITION_TARGET_GLOBAL_INT
+
+    Sets a desired vehicle position, velocity, and/or acceleration in a global coordinate system (WGS84).
+    Used by an external controller to command the vehicle (manual controller or other system).
+    '''
+    name = 'SET_POSITION_TARGET_GLOBAL_INT'
+    fields_desc = [
+        LEIntField('time_boot_ms', None),
+        XByteField('target_system', None),
+        XByteField('target_component', None),
+        ByteEnumField('coordinate_frame', 0x05, MAV_FRAME),
+        XLEShortField('type_mask', 0x0000),
+        LESignedIntField('lat_int', None),
+        LESignedIntField('lon_int', None),
+        LEFloatField('alt', None),
+        LEFloatField('vx', None),
+        LEFloatField('vy', None),
+        LEFloatField('vz', None),
+        LEFloatField('afx', None),
+        LEFloatField('afy', None),
+        LEFloatField('afz', None),
+        LEFloatField('yaw', None),
+        LEFloatField('yaw_rate', None),
+    ]
+
+# MESSAGE ID: 87
+class PositionTargetGlobalInt(Packet):
+    '''
+    Message ID:    87 -> POSITION_TARGET_GLOBAL_INT
+
+    Reports the current commanded vehicle position, velocity, and acceleration as specified by the autopilot.
+    This should match the commands sent in SET_POSITION_TARGET_GLOBAL_INT if the vehicle is being controlled this way.
+    '''
+    name = 'POSITION_TARGET_GLOBAL_INT'
+    fields_desc = [
+        LEIntField('time_boot_ms', None),
+        ByteEnumField('coordinate_frame', 0x05, MAV_FRAME),
+        XLEShortField('type_mask', 0x0000),
+        LESignedIntField('lat_int', None),
+        LESignedIntField('lon_int', None),
+        LEFloatField('alt', None),
+        LEFloatField('vx', None),
+        LEFloatField('vy', None),
+        LEFloatField('vz', None),
+        LEFloatField('afx', None),
+        LEFloatField('afy', None),
+        LEFloatField('afz', None),
+        LEFloatField('yaw', None),
+        LEFloatField('yaw_rate', None),
+    ]
+
+# MESSAGE ID: 89
+class LocalPositionNEDSystemGlobalOffset(Packet):
+    '''
+    Message ID:    89 -> LOCAL_POSITION_NED_SYSTEM_GLOBAL_OFFSET
+
+    The offset in X, Y, Z and yaw between the LOCAL_POSITION_NED messages of MAV X and the global coordinate frame in NED coordinates.
+    Coordinate frame is right-handed, Z-axis down (aeronautical frame, NED / north-east-down convention)
+    '''
+    name = 'LOCAL_POSITION_NED_SYSTEM_GLOBAL_OFFSET'
+    fields_desc = [
+        LEIntField('time_boot_ms', None),
+        LEFloatField('x', None),
+        LEFloatField('y', None),
+        LEFloatField('z', None),
+        LEFloatField('roll', None),
+        LEFloatField('pitch', None),
+        LEFloatField('yaw', None),
+    ]
+
+# MESSAGE ID: 90
+class HILState(Packet):
+    '''
+    Message ID:    90 -> HIL_STATE
+
+    Sent from simulation to autopilot.
+    This packet is useful for high throughput applications such as hardware in the loop simulations.
+    '''
+    name = 'HIL_STATE'
+    fields_desc = [
+        LELongField('time_usec', None),
+        LEFloatField('roll', None),
+        LEFloatField('pitch', None),
+        LEFloatField('yaw', None),
+        LEFloatField('rollspeed', None),
+        LEFloatField('pitchspeed', None),
+        LEFloatField('yawspeed', None),
+        LESignedIntField('lat', None),
+        LESignedIntField('lon', None),
+        LESignedIntField('alt', None),
+        LESignedShortField('vx', None),
+        LESignedShortField('vy', None),
+        LESignedShortField('vz', None),
+        LESignedShortField('xacc', None),
+        LESignedShortField('yacc', None),
+        LESignedShortField('zacc', None),
+    ]
+
+# MESSAGE ID: 91
+class HILControls(Packet):
+    '''
+    Message ID:    91 -> HIL_CONTROLS
+
+    Sent from autopilot to simulation.
+    Hardware in the loop control outputs
+    '''
+    name = 'HIL_CONTROLS'
+    fields_desc = [
+        LELongField('time_usec', None),
+        LEFloatField('roll_ailerons', None),
+        LEFloatField('pitch_elevator', None),
+        LEFloatField('yaw_rudder', None),
+        LEFloatField('throttle', None),
+        LEFloatField('aux1', None),
+        LEFloatField('aux2', None),
+        LEFloatField('aux3', None),
+        LEFloatField('aux4', None),
+        ByteEnumField('mode', None, MAV_MODE),
+        XByteField('nav_mode', None),
+    ]
+
+# MESSAGE ID: 92
+class HILRCInputsRaw(Packet):
+    '''
+    Message ID:    92 -> HIL_RC_INPUTS_RAW
+
+    Sent from simulation to autopilot.
+    The RAW values of the RC channels received.
+    The standard PPM modulation is as follows: 1000 microseconds: 0%, 2000 microseconds: 100%.
+    Individual receivers/transmitters might violate this specification.
+    '''
+    name = 'HIL_RC_INPUTS_RAW'
+    fields_desc = [
+        LELongField('time_usec', None),
+        LEShortField('chan1_raw', None),
+        LEShortField('chan2_raw', None),
+        LEShortField('chan3_raw', None),
+        LEShortField('chan4_raw', None),
+        LEShortField('chan5_raw', None),
+        LEShortField('chan6_raw', None),
+        LEShortField('chan7_raw', None),
+        LEShortField('chan8_raw', None),
+        LEShortField('chan9_raw', None),
+        LEShortField('chan10_raw', None),
+        LEShortField('chan11_raw', None),
+        LEShortField('chan12_raw', None),
+        ByteField('rssi', None),
+    ]
+
+# MESSAGE ID: 93
+class HILActuatorControls(Packet):
+    '''
+    Message ID:    93 -> HIL_ACTUATOR_CONTROLS
+
+    Sent from autopilot to simulation.
+    Hardware in the loop control outputs (replacement for HIL_CONTROLS)
+    '''
+    name = 'HIL_ACTUATOR_CONTROLS'
+    fields_desc = [
+        LELongField('time_usec', None),
+        FieldListField('controls', None, LEFloatField, count_from=lambda pkt: 16),
+        ByteEnumField('mode', None, MAV_MODE),
+        XLELongField('flags', None),
+    ]
+
+# MESSAGE ID: 100
+class OpticalFlow(Packet):
+    '''
+    Message ID:   100 -> OPTICAL_FLOW
+
+    Optical flow from a flow sensor (e.g. optical mouse sensor)
+    '''
+    name = 'OPTICAL_FLOW'
+    fields_desc = [
+        LELongField('time_usec', None),
+        ByteField('sensor_id', None),
+        LESignedShortField('flow_x', None),
+        LESignedShortField('flow_y', None),
+        LEFloatField('flow_comp_m_x', None),
+        LEFloatField('flow_comp_m_y', None),
+        ByteField('quality', None),
+        LEFloatField('ground_distance', None),
+        LEFloatField('flow_rate_x', None),
+        LEFloatField('flow_rate_y', None),
+    ]
+
+# MESSAGE ID: 101
+class GlobalVisionPositionEstimate(Packet):
+    '''
+    Message ID:   101 -> GLOBAL_VISION_POSITION_ESTIMATE
+    '''
+    name = 'GLOBAL_VISION_POSITION_ESTIMATE'
+    fields_desc = [
+        LELongField('usec', None),
+        LEFloatField('x', None),
+        LEFloatField('y', None),
+        LEFloatField('z', None),
+        LEFloatField('roll', None),
+        LEFloatField('pitch', None),
+        LEFloatField('yaw', None),
+        FieldListField('covariance', None, LEFloatField, count_from=lambda pkt: 21),
+    ]
+
+# MESSAGE ID: 102
+class VisionPositionEstimate(Packet):
+    '''
+    Message ID:   102 -> VISION_POSITION_ESTIMATE
+    '''
+    name = 'VISION_POSITION_ESTIMATE'
+    fields_desc = [
+        LELongField('usec', None),
+        LEFloatField('x', None),
+        LEFloatField('y', None),
+        LEFloatField('z', None),
+        LEFloatField('roll', None),
+        LEFloatField('pitch', None),
+        LEFloatField('yaw', None),
+        FieldListField('covariance', None, LEFloatField, count_from=lambda pkt: 21),
+    ]
+
+# MESSAGE ID: 103
+class VisionSpeedEstimate(Packet):
+    '''
+    Message ID:   103 -> VISION_SPEED_ESTIMATE
+
+    Speed estimate from a vision source.
+    '''
+    name = 'VISION_SPEED_ESTIMATE'
+    fields_desc = [
+        LELongField('usec', None),
+        LEFloatField('x', None),
+        LEFloatField('y', None),
+        LEFloatField('z', None),
+        FieldListField('covariance', None, LEFloatField, count_from=lambda pkt: 9),
+    ]
+
+# MESSAGE ID: 104
+class ViconPositionEstimate(Packet):
+    '''
+    Message ID:   104 -> VICON_POSITION_ESTIMATE
+
+    Global position estimate from a Vicon motion system source.
+    '''
+    name = 'VICON_POSITION_ESTIMATE'
+    fields_desc = [
+        LELongField('usec', None),
+        LEFloatField('x', None),
+        LEFloatField('y', None),
+        LEFloatField('z', None),
+        LEFloatField('roll', None),
+        LEFloatField('pitch', None),
+        LEFloatField('yaw', None),
+        FieldListField('covariance', None, LEFloatField, count_from=lambda pkt: 21)
+    ]
+
+# MESSAGE ID: 105
+class HighresIMU(Packet):
+    '''
+    Message ID:   105 -> HIGHRES_IMU
+
+    The IMU readings in SI units in NED body frame.
+    '''
+    name = 'HIGHRES_IMU'
+    fields_desc = [
+        LELongField('time_usec', None),
+        LEFloatField('xacc', None),
+        LEFloatField('yacc', None),
+        LEFloatField('zacc', None),
+        LEFloatField('xgyro', None),
+        LEFloatField('ygyro', None),
+        LEFloatField('zgyro', None),
+        LEFloatField('xmag', None),
+        LEFloatField('ymag', None),
+        LEFloatField('zmag', None),
+        LEFloatField('abs_pressure', None),
+        LEFloatField('diff_pressure', None),
+        LEFloatField('pressure_alt', None),
+        LEFloatField('temperature', None),
+        XLEShortField('fields_updated', None),
+    ]
+
+# MESSAGE ID: 106
+class OpticalFlowRAD(Packet):
+    '''
+    Message ID:   106 -> OPTICAL_FLOW_RAD
+
+    Optical flow from an angular rate flow sensor (e.g. PX4FLOW or mouse sensor)
+    '''
+    name = 'OPTICAL_FLOW_RAD'
+    fields_desc = [
+        LELongField('time_usec', None),
+        XByteField('sensor_id', None),
+        LEIntField('integration_time_us', None),
+        LEFloatField('integrated_x', None),
+        LEFloatField('integrated_y', None),
+        LEFloatField('integrated_xgyro', None),
+        LEFloatField('integrated_ygyro', None),
+        LEFloatField('integrated_zgyro', None),
+        LESignedShortField('temperature', None),
+        ByteField('quality', None),
+        LEIntField('time_delta_distance_us', None),
+        LEFloatField('distance', None),
+    ]
+
+# MESSAGE ID: 107
+class HILSensor(Packet):
+    '''
+    Message ID:   107 -> HIL_SENSOR
+
+    The IMU readings in SI units in NED body frame
+    '''
+    name = 'HIL_SENSOR'
+    fields_desc = [
+        LELongField('time_usec', None),
+        LEFloatField('xacc', None),
+        LEFloatField('yacc', None),
+        LEFloatField('zacc', None),
+        LEFloatField('xgyro', None),
+        LEFloatField('ygyro', None),
+        LEFloatField('zgyro', None),
+        LEFloatField('xmag', None),
+        LEFloatField('ymag', None),
+        LEFloatField('zmag', None),
+        LEFloatField('abs_pressure', None),
+        LEFloatField('diff_pressure', None),
+        LEFloatField('pressure_alt', None),
+        LEFloatField('temperature', None),
+        XLEShortField('fields_updated', None),
+    ]
+
+# MESSAGE ID: 108
+class SIMState(Packet):
+    '''
+    Message ID:   108 -> SIM_STATE
+
+    Status of simulation environment, if used.
+    '''
+    name = 'SIM_STATE'
+    fields_desc = [
+        LEFloatField('q1', None),
+        LEFloatField('q2', None),
+        LEFloatField('q3', None),
+        LEFloatField('q4', None),
+        LEFloatField('roll', None),
+        LEFloatField('pitch', None),
+        LEFloatField('yaw', None),
+        LEFloatField('xacc', None),
+        LEFloatField('yacc', None),
+        LEFloatField('zacc', None),
+        LEFloatField('xgyro', None),
+        LEFloatField('ygyro', None),
+        LEFloatField('zgyro', None),
+        LEFloatField('lat', None),
+        LEFloatField('lon', None),
+        LEFloatField('alt', None),
+        LEFloatField('std_dev_horz', None),
+        LEFloatField('std_dev_vert', None),
+        LEFloatField('vn', None),
+        LEFloatField('ve', None),
+        LEFloatField('vd', None),
+    ]
+
+# MESSAGE ID: 109
+class RadioStatus(Packet):
+    '''
+    Message ID:   109 -> RADIO_STATUS
+
+    Status generated by radio and injected into MAVLink stream.
+    '''
+    name = 'RADIO_STATUS',
+    fields_desc = [
+        ByteField('rssi', None),
+        ByteField('remrssi', None),
+        ByteField('txbuf', None),
+        ByteField('noise', None),
+        ByteField('remnoise', None),
+        LEShortField('rxerrors', None),
+        LEShortField('fixed', None),
+    ]
+
+# MESSAGE ID: 110
+class FileTransferProtocol(Packet):
+    '''
+    Message ID:   100 -> FILE_TRANSFER_PROTOCOL
+
+    File transfer message.
+    '''
+    name = 'FILE_TRANSFER_PROTOCOL'
+    fields_desc = [
+        ByteField('target_network', None),
+        ByteField('target_system', None),
+        ByteField('target_component', None),
+        FieldListField('payload', None, ByteField, count_from=lambda pkt: 251),
+    ]
+
 MESSAGES = {
     0: Heartbeat,
     1: SysStatus,
@@ -658,4 +1623,49 @@ MESSAGES = {
     43: MissionRequestList,
     44: MissionCount,
     45: MissionClearAll,
+    46: MissionItemReached,
+    47: MissionAck,
+    48: SetGPSGlobalOrigin,
+    49: GPSGlobalOrigin,
+    50: ParamMapRC,
+    51: MissionRequestInt,
+    54: SafetySetAllowedArea,
+    55: SafetyAllowedArea,
+    61: AttitudeQuaternionCOV,
+    62: NAVControllerOutput,
+    63: GlobalPositionIntCOV,
+    64: LocalPositionNEDCOV,
+    65: RCChannels,
+    66: RequestDataStream,
+    67: DataStream,
+    69: ManualControl,
+    70: RCChanelsOverride,
+    73: MissionItemInt,
+    74: VFRHUD,
+    75: CommandInt,
+    76: CommandLong,
+    77: CommandAck,
+    81: ManualSetpoint,
+    82: SetAttitudeTarget,
+    83: AttitudeTarget,
+    84: SetPositionTargetLocalNED,
+    85: PositionTargetLocalNED,
+    86: SetPositionTargetGlobalInt,
+    87: PositionTargetGlobalInt,
+    89: LocalPositionNEDSystemGlobalOffset,
+    90: HILState,
+    91: HILControls,
+    92: HILRCInputsRaw,
+    93: HILActuatorControls,
+    100: OpticalFlow,
+    101: GlobalVisionPositionEstimate,
+    102: VisionPositionEstimate,
+    103: VisionSpeedEstimate,
+    104: ViconPositionEstimate,
+    105: HighresIMU,
+    106: OpticalFlowRAD,
+    107: HILSensor,
+    108: SIMState,
+    109: RadioStatus,
+    110: FileTransferProtocol,
 }
