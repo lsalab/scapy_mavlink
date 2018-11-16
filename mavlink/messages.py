@@ -905,7 +905,6 @@ class RequestDataStream(Packet):
         ByteField('start_stop', None),
     ]
 
-<<<<<<< HEAD
 # MESSAGE ID: 67
 class DataStream(Packet):
     '''
@@ -1593,8 +1592,6 @@ class FileTransferProtocol(Packet):
         FieldListField('payload', None, ByteField, count_from=lambda pkt: 251),
     ]
 
-=======
->>>>>>> 1f24a1d52c3e6aad4f3a69f0f5a4e2cb2cc6d058
 MESSAGES = {
     0: Heartbeat,
     1: SysStatus,
