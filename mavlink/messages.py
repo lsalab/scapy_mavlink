@@ -808,7 +808,11 @@ class GlobalPositionIntCOV(Packet):
     The filtered global position (e.g. fused GPS and accelerometers).
     The position is in GPS-frame (right-handed, Z-up).
     It is designed as scaled integer message since the resolution of float is not sufficient.
+<<<<<<< HEAD
 
+=======
+    
+>>>>>>> 1f24a1d52c3e6aad4f3a69f0f5a4e2cb2cc6d058
     NOTE: This message is intended for onboard networks / companion computers and higher-bandwidth links and optimized for accuracy and completeness.
     Please use the GLOBAL_POSITION_INT message for a minimal subset.
     '''
@@ -901,6 +905,7 @@ class RequestDataStream(Packet):
         ByteField('start_stop', None),
     ]
 
+<<<<<<< HEAD
 # MESSAGE ID: 67
 class DataStream(Packet):
     '''
@@ -1588,6 +1593,8 @@ class FileTransferProtocol(Packet):
         FieldListField('payload', None, ByteField, count_from=lambda pkt: 251),
     ]
 
+=======
+>>>>>>> 1f24a1d52c3e6aad4f3a69f0f5a4e2cb2cc6d058
 MESSAGES = {
     0: Heartbeat,
     1: SysStatus,
@@ -1637,6 +1644,7 @@ MESSAGES = {
     64: LocalPositionNEDCOV,
     65: RCChannels,
     66: RequestDataStream,
+<<<<<<< HEAD
     67: DataStream,
     69: ManualControl,
     70: RCChanelsOverride,
@@ -1668,4 +1676,6 @@ MESSAGES = {
     108: SIMState,
     109: RadioStatus,
     110: FileTransferProtocol,
+=======
+>>>>>>> 1f24a1d52c3e6aad4f3a69f0f5a4e2cb2cc6d058
 }
