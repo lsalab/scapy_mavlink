@@ -3,8 +3,8 @@
 '''MAVLink message definitions'''
 
 from scapy.packet import Packet
-from scapy.fields import ByteEnumField, ByteField, FieldListField, LEIntField, LELongField, LEShortEnumField, LEShortField, LESignedIntField, SignedByteField, StrFixedLenField, XByteField
-from .fields import LEFloatField, XLELongField, LESignedShortField, XLEShortField
+from scapy.fields import ByteEnumField, ByteField, FieldListField, LEIntField, LELongField, LEShortEnumField, LEShortField, LESignedIntField, SignedByteField, StrFixedLenField, XByteField, ConditionalField
+from .fields import LEFloatField, XLELongField, LESignedShortField, XLEShortField, WGS84
 from .enums import *
 
 # MESSAGE ID: 0
@@ -808,11 +808,7 @@ class GlobalPositionIntCOV(Packet):
     The filtered global position (e.g. fused GPS and accelerometers).
     The position is in GPS-frame (right-handed, Z-up).
     It is designed as scaled integer message since the resolution of float is not sufficient.
-<<<<<<< HEAD
 
-=======
-    
->>>>>>> 1f24a1d52c3e6aad4f3a69f0f5a4e2cb2cc6d058
     NOTE: This message is intended for onboard networks / companion computers and higher-bandwidth links and optimized for accuracy and completeness.
     Please use the GLOBAL_POSITION_INT message for a minimal subset.
     '''
@@ -1592,6 +1588,676 @@ class FileTransferProtocol(Packet):
         FieldListField('payload', None, ByteField, count_from=lambda pkt: 251),
     ]
 
+# MESSAGE ID: 111
+class Timesync(Packet):
+    '''
+    Message ID:   111 -> TIMESYNC
+
+    Time synchronization message.
+    '''
+    name = 'TIMESYNC'
+    fields_desc = [
+        LELongField('tc1', None),
+        LELongField('ts1', None),
+    ]
+
+# MESSAGE ID: 112
+class CameraTrigger(Packet):
+    '''
+    Message ID:   112 -> CAMERA_TRIGGER
+
+    Camera-IMU triggering and synchronisation message.
+    '''
+    name = 'CAMERA_TRIGGER'
+    fields_desc = [
+        LELongField('time_usec', None),
+        LEIntField('seq', None),
+    ]
+
+# MESSAGE ID: 113
+class HILGPS(Packet):
+    '''
+    Message ID:   113 -> HIL_GPS
+
+    The global position, as returned by the Global Positioning System (GPS).
+    This is NOT the global position estimate of the sytem, but rather a RAW sensor value.
+    See message GLOBAL_POSITION for the global position estimate.
+    '''
+    name = 'HIL_GPS'
+    fields_desc = [
+        LELongField('time_usec', None),
+        ByteField('fix_type', None),
+        WGS84('lat', None),
+        WGS84('lon', None),
+        LESignedIntField('alt', None),
+        LEShortField('eph', None),
+        LEShortField('epv', None),
+        LEShortField('vel', None),
+        LESignedShortField('vn', None),
+        LESignedShortField('ve', None),
+        LESignedShortField('vd', None),
+        LEShortField('cog', None),
+        ByteField('satellites_visible', None),
+    ]
+
+# MESSAGE ID: 114
+class HILOpticalFlow(Packet):
+    '''
+    Message ID:   114 -> HIL_OPTICAL_FLOW
+
+    Simulated optical flow from a flow sensor
+    (e.g. PX4FLOW or optical mouse sensor)
+    '''
+    name = 'HIL_OPTICAL_FLOW'
+    fields_desc = {
+        LELongField('time_usec', None),
+        XByteField('sensor_id', None),
+        LEIntField('integration_time_us', None),
+        LEFloatField('integrated_x', None),
+        LEFloatField('integrated_y', None),
+        LEFloatField('integrated_xgyro', None),
+        LEFloatField('integrated_ygyro', None),
+        LEFloatField('integrated_zgyro', None),
+        LESignedShortField('temperature', None),
+        ByteField('quality', None),
+        LEIntField('time_delta_distance_us', None),
+        LEFloatField('distance', None),
+    }
+
+# MESSAGE ID: 115
+class HILStateQuaternion(Packet):
+    '''
+    Message ID:   115 -> HIL_STATE_QUATERNION
+
+    Sent from simulation to autopilot, avoids in contrast to HIL_STATE singularities.
+    This packet is useful for high throughput applications such as hardware in the loop simulations.
+    '''
+    name = 'HIL_STATE_QUATERNION'
+    fields_desc = {
+        LELongField('time_usec', None),
+        FieldListField('attitude_quaternion', None, LEFloatField, count_from=lambda pkt: 4),
+        LEFloatField('rollspeed', None),
+        LEFloatField('pitchspeed', None),
+        LEFloatField('yawspeed', None),
+        WGS84('lat', None),
+        WGS84('lat', None),
+        LESignedIntField('alt', None),
+        LESignedShortField('vx', None),
+        LESignedShortField('vy', None),
+        LESignedShortField('vz', None),
+        LEShortField('ind_airspeed', None),
+        LEShortField('true_airspeed', None),
+        LESignedShortField('xacc', None),
+        LESignedShortField('yacc', None),
+        LESignedShortField('zacc', None),
+    }
+
+# MESSAGE ID: 116
+class ScaledIMU2(Packet):
+    '''
+    Message ID:   116 -> SCALED_IMU2
+
+    The RAW IMU readings for secondary 9DOF sensor setup.
+    This message should contain the scaled values to the described units.
+    '''
+    name = 'SCALED_IMU2'
+    fields_desc = {
+        LEIntField('time_boot_ms', None),
+        LESignedShortField('xacc', None),
+        LESignedShortField('yacc', None),
+        LESignedShortField('zacc', None),
+        LESignedShortField('xgyro', None),
+        LESignedShortField('ygyro', None),
+        LESignedShortField('zgyro', None),
+        LESignedShortField('xmag', None),
+        LESignedShortField('ymag', None),
+        LESignedShortField('zmag', None),
+    }
+
+# MESSAGE ID: 117
+class LogRequestList(Packet):
+    '''
+    Message ID:   117 -> LOG_REQUEST_LIST
+
+    Request a list of available logs.
+    On some systems calling this may stop on-board logging until LOG_REQUEST_END is called.
+    '''
+    name = 'LOG_REQUEST_LIST'
+    fields_desc = {
+        XByteField('target_system', None),
+        XByteField('target_component', None),
+        LEShortField('start', None),
+        LEShortField('end', None),
+    }
+
+# MESSAGE ID: 118
+class LogEntry(Packet):
+    '''
+    Message ID:   118 -> LOG_ENTRY
+
+    Reply to LOG_REQUEST_LIST
+    '''
+    name = 'LOG_ENTRY'
+    fields_desc = {
+        LEShortField('id', None),
+        LEShortField('num_logs', None),
+        LEShortField('last_log_num', None),
+        LEIntField('time_utc', None),
+        LEIntField('size', None),
+    }
+
+# MESSAGE ID: 119
+class LogRequestData(Packet):
+    '''
+    Message ID:   119 -> LOG_REQUEST_DATA
+
+    Request a chunk of a log.
+    '''
+    name = 'LOG_REQUEST_DATA'
+    fields_desc = {
+        XByteField('target_system', None),
+        XByteField('target_component', None),
+        LEShortField('id', None),
+        LEIntField('ofs', None),
+        LEIntField('count', None),
+    }
+
+# MESSAGE ID: 120
+class LogData(Packet):
+    '''
+    Message ID:   120 -> LOG_DATA
+
+    Reply to LOG_REQUEST_DATA.
+    '''
+    name = 'LOG_DATA'
+    fields_desc = {
+        LEShortField('id', None),
+        LEIntField('ofs', None),
+        ByteField('count', None),
+        FieldListField('data', None, ByteField, count_from=lambda pkt: 90),
+    }
+
+# MESSAGE ID: 121
+class LogErase(Packet):
+    '''
+    Message ID:   121 -> LOG_ERASE
+
+    Erase all logs.
+    '''
+    name = 'LOG_ERASE'
+    fields_desc = {
+        XByteField('target_system', None),
+        XByteField('target_component', None),
+    }
+
+# MESSAGE ID: 122
+class LogRequestEnd(Packet):
+    '''
+    Message ID:   121 -> LOG_REQUEST_END
+
+    Erase all logs.
+    '''
+    name = 'LOG_REQUEST_END'
+    fields_desc = {
+        XByteField('target_system', None),
+        XByteField('target_component', None),
+    }
+
+# MESSAGE ID: 123
+class GPSInjectData(Packet):
+    '''
+    Message ID:   123 -> GPS_INJECT_DATA
+    
+    Data for injecting into the onboard GPS (used for DGPS)
+    '''
+    name = 'GPS_INJECT_DATA'
+    fields_desc = {
+        XByteField('target_system', None),
+        XByteField('target_component', None),
+        ByteField('len', None),
+        FieldListField('data', None, ByteField, count_from=lambda pkt: 110),
+    }
+
+# MESSAGE ID: 124
+class GPS2Raw(Packet):
+    '''
+    Message ID:   124 -> GPS2_RAW
+
+    Second GPS data.
+    '''
+    name = 'GPS2_RAW'
+    fields_desc = {
+        LELongField('time_usec', None),
+        ByteEnumField('fix_type', None, GPS_FIX_TYPE),
+        WGS84('lat', None),
+        WGS84('lon', None),
+        LESignedIntField('alt', None),
+        LEShortField('eph', None),
+        LEShortField('epv', None),
+        LEShortField('vel', None),
+        LEShortField('cog', None),
+        ByteField('satellites_visible', None),
+        ByteField('dgps_numch', None),
+        ByteField('dgps_age', None),
+    }
+
+# MESSAGE ID: 125
+class PowerStatus(Packet):
+    '''
+    Message ID:   125 -> POWER_STATUS
+
+    Power supply status
+    '''
+    name = 'POWER_STATUS'
+    fields_desc = {
+        LEShortField('Vcc', None),
+        LEShortField('Vservo', None),
+        LEShortField('flags', None),
+    }
+
+# MESSAGE ID: 126
+class SerialControl(Packet):
+    '''
+    Message ID:   126 -> SERIAL_CONTROL
+
+    Control a serial port.
+    This can be used for raw access to an onboard serial peripheral such as a GPS or telemetry radio.
+    It is designed to make it possible to update the devices firmware via MAVLink messages or change the devices settings.
+    A message with zero bytes can be used to change just the baudrate.
+    '''
+    name = 'SERIAL_CONTROL',
+    fields_desc = {
+        ByteEnumField('device', None, SERIAL_CONTROL_DEV),
+        ByteEnumField('flags', None, SERIAL_CONTROL_FLAG),
+        LEShortField('timeout', None),
+        LEIntField('baudrate', None),
+        ByteField('count', None),
+        FieldListField('data', None, ByteField, count_from=lambda pkt: 70),
+    }
+
+# MESSAGE ID: 127
+class GPSRTK(Packet):
+    '''
+    Message ID:   127 -> GPS_RTK
+
+    RTK GPS data.
+    Gives information on the relative baseline calculation the GPS is reporting.
+    '''
+    name = 'GPS_RTK'
+    fields_desc = {
+        LEIntField('time_last_baseline_ms', None),
+        XByteField('rtk_receiver_id', None),
+        LEShortField('wn', None),
+        LEIntField('tow', None),
+        ByteField('rtk_health', None),
+        ByteField('rtk_rate', None),
+        ByteField('nsats', None),
+        ByteEnumField('baseline_coords_type', None, RTK_BASELINE_COORDINATE_SYSTEM),
+        LESignedIntField('baseline_a_mm', None),
+        LESignedIntField('baseline_b_mm', None),
+        LESignedIntField('baseline_c_mm', None),
+        LEIntField('accuracy', None),
+        LESignedIntField('iar_num_hypotheses', None),
+    }
+
+# MESSAGE ID: 128
+class GPS2RTK(Packet):
+    '''
+    Message ID:   128 -> GPS2_RTK
+
+    RTK GPS data.
+    Gives information on the relative baseline calculation the GPS is reporting
+    '''
+    name = 'GPS2_RTK'
+    fields_desc = {
+        LEIntField('time_last_baseline_ms', None),
+        XByteField('rtk_receiver_id', None),
+        LEShortField('wn', None),
+        LEIntField('tow', None),
+        ByteField('rtk_health', None),
+        ByteField('rtk_rate', None),
+        ByteField('nsats', None),
+        ByteEnumField('baseline_coords_type', None, RTK_BASELINE_COORDINATE_SYSTEM),
+        LESignedIntField('baseline_a_mm', None),
+        LESignedIntField('baseline_b_mm', None),
+        LESignedIntField('baseline_c_mm', None),
+        LEIntField('accuracy', None),
+        LESignedIntField('iar_num_hypotheses', None),
+    }
+
+# MESSAGE ID: 129
+class ScaledIMU3(Packet):
+    '''
+    Message ID:   129 -> SCALED_IMU3
+
+    The RAW IMU readings for 3rd 9DOF sensor setup.
+    This message should contain the scaled values to the described units.
+    '''
+    name = 'SCALED_IMU3'
+    fields_desc = {
+        LEIntField('time_boot_ms', None),
+        LESignedShortField('xacc', None),
+        LESignedShortField('yacc', None),
+        LESignedShortField('zacc', None),
+        LESignedShortField('xgyro', None),
+        LESignedShortField('ygyro', None),
+        LESignedShortField('zgyro', None),
+        LESignedShortField('xmag', None),
+        LESignedShortField('ymag', None),
+        LESignedShortField('zmag', None),
+    }
+
+# MESSAGE ID: 130
+class DataTransmissionHandshake(Packet):
+    '''
+    Message ID:   130 -> DATA_TRANSMISSION_HANDSHAKE
+
+    Handshake message to initiate, control and stop image streaming when using the Image Transmission Protocol:
+    https://mavlink.io/en/protocol/image_transmission.html.
+    '''
+    name = 'DATA_TRANSMISSION_PROTOCOL'
+    fields_desc = {
+        XByteField('type', None),
+        LEIntField('soze', None),
+        LEShortField('width', None),
+        LEShortField('height', None),
+        LEShortField('packets', None),
+        ByteField('payload', None),
+        ByteField('jpg_quality', None),
+    }
+
+# MESSAGE ID: 131
+class EncapsulatedData(Packet):
+    '''
+    Message ID:   131 -> ENCAPSULATED_DATA
+
+    Data packet for images sent using the Image Transmission Protocol:
+    https://mavlink.io/en/protocol/image_transmission.html.
+    '''
+    name = 'ENCAPSULATED_DATA'
+    fields_desc = {
+        LEShortField('seqnr', None),
+        FieldListField('data', None, ByteField, count_from=lambda pkt: 253),
+    }
+
+# MESSAGE ID: 132
+class DistanceSensor(Packet):
+    '''
+    Message ID:   132 -> DISTANCE_SENSOR
+
+    Distance sensor information for an onboard rangefinder.
+    '''
+    name = 'DISTANCE_SENSOR'
+    fields_desc = {
+        LEIntField('time_boot_ms', None),
+        LEShortField('min_distance', None),
+        LEShortField('max_distance', None),
+        LEShortField('current_distance', None),
+        ByteEnumField('type', None, MAV_DISTANCE_SENSOR),
+        XByteField('id', None),
+        ByteEnumField('orientation', None, MAV_SENSOR_ORIENTATION),
+        ByteField('covariance', None),
+    }
+
+# MESSAGE ID: 133
+class TerrainRequest(Packet):
+    '''
+    Message ID:   133 -> TERRAIN_REQUEST
+
+    Request for terrain data and terrain status.
+    '''
+    name = 'TERRAIN_REQUEST'
+    fields_desc = {
+        LESignedIntField('lat', None),
+        LESignedIntField('lon', None),
+        LEShortField('grid_spacing', None),
+        XLELongField('mask', None),
+    }
+
+# MESSAGE ID: 134
+class TerrainData(Packet):
+    '''
+    Message ID:   134 -> TERRAIN_DATA
+
+    Terrain data sent from GCS.
+    The lat/lon and grid_spacing must be the same as a lat/lon from a TERRAIN_REQUEST.
+    '''
+    name = 'TERRAIN_DATA'
+    fields_desc = {
+        LESignedIntField('lat', None),
+        LESignedIntField('lon', None),
+        LEShortField('grid_spacing', None),
+        XByteField('gridbit', None),
+        FieldListField('data', None, LESignedShortField, lambda pkt: 16),
+    }
+
+# MESSAGE ID: 135
+class TerrainCheck(Packet):
+    '''
+    Message ID:   135 -> TERRAIN_CHECK
+
+    Request that the vehicle report terrain height at the given location.
+    Used by GCS to check if vehicle has all terrain data needed for a mission.
+    '''
+    name = 'TERRAIN_CHECK'
+    fields_desc = {
+        LESignedIntField('lat', None),
+        LESignedIntField('lon', None),
+    }
+
+# MESSAGE ID: 136
+class TerrainReport(Packet):
+    '''
+    Message ID:   136 -> TERRAIN_REPORT
+
+    Response from a TERRAIN_CHECK request.
+    '''
+    name = 'TERRAIN_REPORT'
+    fields_desc = {
+        LESignedIntField('lat', None),
+        LESignedIntField('lon', None),
+        LEShortField('spacing', None),
+        LEFloatField('terrain_height', None),
+        LEFloatField('current_height', None),
+        LEShortField('pending', None),
+        LEShortField('loaded', None),
+    }
+
+# MESSAGE ID: 137
+class ScaledPressure2(Packet):
+    '''
+    Message ID:   137 -> SCALED_PRESSURE2
+
+    Barometer readings for 2nd barometer.
+    '''
+    name = 'SCALED_PRESSURE2'
+    fields_desc = {
+        LEIntField('time_boot_ms', None),
+        LEFloatField('press_abs', None),
+        LEFloatField('press_diff', None),
+        LESignedShortField('temperature', None),
+    }
+
+# MESSAGE ID: 138
+class ATTPosMocap(Packet):
+    '''
+    Message ID:   138 -> ATT_POS_MOCAP
+
+    Motion capture attitude and position.
+    '''
+    name = 'ATT_POS_MOCAP'
+    fields_desc = {
+        LELongField('time_usec', None),
+        FieldListField('q', None, LEFloatField, count_from=lambda pkt: 4),
+        LEFloatField('x', None),
+        LEFloatField('y', None),
+        LEFloatField('z', None),
+        ConditionalField(FieldListField('covariance', None, LEFloatField, count_from=lambda pkt: 21), lambda pkt: pkt.magic == 0xfd)
+    }
+
+# MESSAGE ID: 139
+class SetActuatorControlTarget(Packet):
+    '''
+    Message ID:   139 -> SET_ACTUATOR_CONTROL_TARGET
+
+    Set the vehicle attitude and body angular rates.
+    '''
+    name = 'SET_ACTUATOR_CONTROL_TARGET'
+    fields_desc = {
+        LELongField('time_usec', None),
+        XByteField('group_mlx', None),
+        XByteField('target_system', None),
+        XByteField('target_component', None),
+        FieldListField('controls', None, LEFloatField, count_from=lambda pkt: 8),
+    }
+
+# MESSAGE ID: 140
+class ActuatorControlTarget(Packet):
+    '''
+    Message ID:   140 -> ACTUATOR_CONTROL_TARGET
+
+    Set the vehicle attitude and body angular rates.
+    '''
+    name = 'ACTUATOR_CONTROL_TARGET'
+    fields_desc = {
+        LELongField('time_usec', None),
+        XByteField('group_mlx', None),
+        FieldListField('controls', None, LEFloatField, count_from=lambda pkt: 8),
+    }
+
+# MESSAGE ID: 141
+class Altitude(Packet):
+    '''
+    Message ID:   141 -> ALTITUDE
+
+    The current system altitude.
+    '''
+    name = 'ALTITUDE'
+    fields_desc = {
+        LELongField('time_usec', None),
+        LEFloatField('altitude_monotonic', None),
+        LEFloatField('altitude_amsl', None),
+        LEFloatField('altitude_local', None),
+        LEFloatField('altitude_relative', None),
+        LEFloatField('altitude_terrain', None),
+        LEFloatField('bottom_clearance', None),
+    }
+
+# MESSAGE ID: 142
+class ResourceRequest(Packet):
+    '''
+    Message ID:   142 -> RESOURCE_REQUEST
+
+    The autopilot is requesting a resource (file, binary, other type of data).
+    '''
+    name = 'RESOURCE_REQUEST'
+    fields_desc = {
+        XByteField('request_id', None),
+        XByteField('uri_type', None),
+        FieldListField('uri', None, XByteField, count_from=lambda pkt: 120),
+        XByteField('transfer_type', None),
+        FieldListField('storage', None, XByteField, count_from=lambda pkt: 120),
+    }
+
+# MESSAGE ID: 143
+class ScaledPressure3(Packet):
+    '''
+    Message ID:   143 -> SCALED_PRESSURE3
+
+    Barometer readings for 3rd barometer.
+    '''
+    name = 'SCALED_PRESSURE3'
+    fields_desc = {
+        LEIntField('time_boot_ms', None),
+        LEFloatField('press_abs', None),
+        LEFloatField('press_diff', None),
+        LESignedShortField('temperature', None),
+    }
+
+# MESSAGE ID: 144
+class FollowTarget(Packet):
+    '''
+    Message ID:   144 -> FOLLOW_TARGET
+
+    Current motion information from a designated system.
+    '''
+    name = 'FOLLOW_TARGET'
+    fields_desc = {
+        LELongField('time_usec', None),
+        ByteField('est_capabilities', None),
+        WGS84('lat', None),
+        WGS84('lon', None),
+        LEFloatField('alt', None),
+        FieldListField('vel', None, LEFloatField, count_from=lambda pkt: 3),
+        FieldListField('acc', None, LEFloatField, count_from=lambda pkt: 3),
+        FieldListField('attitude_q', None, LEFloatField, count_from=lambda pkt: 4),
+        FieldListField('rates', None, LEFloatField, count_from=lambda pkt: 3),
+        FieldListField('position_cov', None, LEFloatField, count_from=lambda pkt: 3),
+        XLELongField('custom_state', None),
+    }
+
+# MESSAGE ID: 146
+class ControlSystemState(Packet):
+    '''
+    Message ID:   146 -> CONTROL_SYSTEM_STATE
+
+    The smoothed, monotonic system state used to feed the control loops of the system.
+    '''
+    name = 'CONTROL_SYSTEM_STATE'
+    fields_desc = {
+        LELongField('time_usec', None),
+        LEFloatField('x_acc', None),
+        LEFloatField('y_acc', None),
+        LEFloatField('z_acc', None),
+        LEFloatField('x_vel', None),
+        LEFloatField('y_vel', None),
+        LEFloatField('z_vel', None),
+        LEFloatField('x_pos', None),
+        LEFloatField('y_pos', None),
+        LEFloatField('z_pos', None),
+        LEFloatField('airspeed', None),
+        FieldListField('vel_variance', None, LEFloatField, count_from=lambda pkt: 3),
+        FieldListField('pos_variance', None, LEFloatField, count_from=lambda pkt: 3),
+        FieldListField('q', None, LEFloatField, count_from=lambda pkt: 4),
+        LEFloatField('roll_rate', None),
+        LEFloatField('pitch_rate', None),
+        LEFloatField('yaw_rate', None),
+    }
+
+# MESSAGE ID: 147
+class BatteryStatus(Packet):
+    '''
+    Message ID:   147 -> BATTERY_STATUS
+
+    Battery information.
+    '''
+    name = 'BATTERY_STATUS'
+    fields_desc = {
+        XByteField('id', None),
+        ByteEnumField('battery_function', None, MAV_BATTERY_FUNCTION),
+        ByteEnumField('type', None, MAV_BATTERY_TYPE),
+        LESignedShortField('temperature', None),
+        FieldListField('voltages', None, LEShortField, count_from=lambda pkt: 10),
+        LESignedShortField('current_battery', None),
+        LESignedIntField('current_consumed', None),
+        LESignedIntField('energy_consumed', None),
+        SignedByteField('battery_remaining', None),
+        ConditionalField(LESignedIntField('time_remaining', None), lambda pkt: pkt.magic == 0xfd),
+        ConditionalField(ByteEnumField('charge_state', None, MAV_BATTERY_CHARGE_STATE), lambda pkt: pkt.magic == 0xfd),
+    }
+
+# MESSAGE ID: 148
+class AutopilotVersion(Packet):
+    '''
+    Message ID:   148 -> AUTOPILOT_VERSION
+
+    Version and capability of autopilot software.
+    '''
+    name = 'AUTOPILOT_VERSION'
+    fields_desc = {
+        # TODO: Create LELongEnumField based on any existing enum field.
+    }
+
 MESSAGES = {
     0: Heartbeat,
     1: SysStatus,
@@ -1672,4 +2338,40 @@ MESSAGES = {
     108: SIMState,
     109: RadioStatus,
     110: FileTransferProtocol,
+    111: Timesync,
+    112: CameraTrigger,
+    113: HILGPS,
+    114: HILOpticalFlow,
+    115: HILStateQuaternion,
+    116: ScaledIMU2,
+    117: LogRequestList,
+    118: LogEntry,
+    119: LogRequestData,
+    120: LogData,
+    121: LogErase,
+    122: LogRequestEnd,
+    123: GPSInjectData,
+    124: GPS2Raw,
+    125: PowerStatus,
+    126: SerialControl,
+    127: GPSRTK,
+    128: GPS2RTK,
+    129: ScaledIMU3,
+    130: DataTransmissionHandshake,
+    131: EncapsulatedData,
+    132: DistanceSensor,
+    133: TerrainRequest,
+    134: TerrainData,
+    135: TerrainCheck,
+    136: TerrainReport,
+    137: ScaledPressure2,
+    138: ATTPosMocap,
+    139: SetActuatorControlTarget,
+    140: ActuatorControlTarget,
+    141: Altitude,
+    142: ResourceRequest,
+    143: ScaledPressure3,
+    144: FollowTarget,
+    146: ControlSystemState,
+    147: BatteryStatus,
 }

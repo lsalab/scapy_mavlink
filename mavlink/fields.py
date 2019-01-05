@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 '''Custom fields'''
 
+from struct import pack, unpack
 from scapy.fields import Field, LELongField, LEShortField, XByteField
 
 class LESignedShortField(Field):
@@ -30,3 +31,24 @@ class LEFloatField(Field):
     '''
     def __init__(self, name, default):
         Field.__init__(self, name, default, '<f')
+
+class WGS84(Field):
+    '''
+    WGS84 encoded GPS coordinate.
+    '''
+
+    def m2i(self, pkt, x):
+        val = [x[3], x[0], x[1], x[2]]
+        val = unpack('<i', bytes(val))[0]
+        return val
+
+    def i2m(self, pkt, x):
+        val = pack('<i', x)
+        val = [val[1], val[2], val[3], val[0]]
+        return bytes(val)
+
+    def addfield(self, pkt, s, val):
+        return s + self.i2m(pkt, val)
+
+    def getfield(self, pkt, s):
+        return self.m2i(pkt, s[:4])
