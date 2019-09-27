@@ -2,7 +2,9 @@
 '''Custom fields'''
 
 from struct import pack, unpack
-from scapy.fields import Field, LELongField, LEShortField, XByteField
+from scapy.compat import raw
+from scapy.packet import conf
+from scapy.fields import Field, StrField, LELongField, LEShortField, XByteField
 
 class LESignedShortField(Field):
     '''
@@ -52,3 +54,20 @@ class WGS84(Field):
 
     def getfield(self, pkt, s):
         return self.m2i(pkt, s[:4])
+
+class TagField(Field):
+    '''
+    Fixed-length tag field
+    '''
+
+    __slots__ = ['count']
+
+    def __init__(self, name, default, count=None):
+        Field.__init__(self, name, default, '<' + 'B'*count)
+        self.count = count
+    
+    def addfield(self, pkt, s, val):
+        return s + val.encode('utf-8')
+    
+    def getfield(self, pkt, s):
+        return s[self.count:], s[:self.count]

@@ -3,8 +3,8 @@
 '''MAVLink message definitions'''
 
 from scapy.packet import Packet
-from scapy.fields import ByteEnumField, ByteField, FieldListField, LEIntField, LELongField, LEShortEnumField, LEShortField, LESignedIntField, SignedByteField, StrFixedLenField, XByteField, ConditionalField
-from .fields import LEFloatField, XLELongField, LESignedShortField, XLEShortField, WGS84
+from scapy.fields import FlagsField, ByteEnumField, ByteField, FieldListField, LEIntField, LELongField, LEShortEnumField, LEShortField, LESignedIntField, SignedByteField, StrField, StrLenField, StrFixedLenField, XByteField, ConditionalField
+from .fields import LEFloatField, XLELongField, LESignedShortField, XLEShortField, WGS84, TagField
 from .enums import *
 
 # MESSAGE ID: 0
@@ -2252,10 +2252,514 @@ class AutopilotVersion(Packet):
     Message ID:   148 -> AUTOPILOT_VERSION
 
     Version and capability of autopilot software.
+    This should be emitted in response to a MAV_CMD_REQUEST_AUTOPILOT_CAPABILITIES command.
     '''
     name = 'AUTOPILOT_VERSION'
     fields_desc = {
-        # TODO: Create LELongEnumField based on any existing enum field.
+        FlagsField('capabilities', 0x0, 64, list(MAV_PROTOCOL_CAPABILITY.values()) + 47*['-']),
+        LEIntField('flight_sw_version', None),
+        LEIntField('middleware_sw_version', None),
+        LEIntField('os_sw_version', None),
+        LEIntField('board_version', None),
+        FieldListField('flight_custom_version', None, ByteField, count_from=lambda x: 8),
+        FieldListField('middleware_custom_version', None, ByteField, count_from=lambda x: 8),
+        FieldListField('os_custom_version', None, ByteField, count_from=lambda x: 8),
+        LEShortField('vendor_id', 0x0000),
+        LEShortField('product_id', 0x0000),
+        LELongField('uid', 0x0000000000000000),
+        ConditionalField(FieldListField('uid2', None, ByteField, count_from=lambda x: 18), lambda pkt: len(pkt.original) == 78),
+    }
+
+# MESSAGE ID: 149
+class LandingTarget(Packet):
+    '''
+    Message ID:   149 -> LANDING_TARGET
+
+    The location of a landing target.
+    See: https://mavlink.io/en/services/landing_target.html
+    '''
+
+    name = 'LANDING_TARGET'
+    fields_desc = {
+        LELongField('time_usec', 0x00),
+        ByteField('target_num', 0x00),
+        ByteEnumField('frame', 0x00, MAV_FRAME),
+        LEFloatField('angle_x', 0x00),
+        LEFloatField('angle_y', 0x00),
+        LEFloatField('distance', 0x00),
+        LEFloatField('size_x', 0x00),
+        LEFloatField('size_y', 0x00),
+        ConditionalField(LEFloatField('x', 0x00), lambda pkt: len(pkt.original) == 60),
+        ConditionalField(LEFloatField('y', 0x00), lambda pkt: len(pkt.original) == 60),
+        ConditionalField(LEFloatField('z', 0x00), lambda pkt: len(pkt.original) == 60),
+        ConditionalField(LEFloatField('q', 0x00), lambda pkt: len(pkt.original) == 60),
+        ConditionalField(ByteEnumField('type', 0x00, LANDING_TARGET_TYPE), lambda pkt: len(pkt.original) == 60),
+        ConditionalField(ByteField('position_valid', 0x00), lambda pkt: len(pkt.original) == 60),
+    }
+
+# MESSAGE ID: 162
+class FenceStatus(Packet):
+    '''
+    Message ID:   162 -> FENCE_STATUS
+
+    Status of geo-fencing.
+    Sent in extended status stream when fencing enabled.
+    '''
+
+    name = 'FENCE_STATUS'
+    fields_desc = {
+        ByteField('breach_status', 0x00),
+        LEShortField('breach_count', 0x00),
+        ByteEnumField('breach_type', 0x00, FENCE_BREACH),
+        LEIntField('breach_time', 0x00),
+    }
+
+# MESSAGE ID: 230
+class EstimatorStatus(Packet):
+    '''
+    Message ID:   230 -> ESTIMATOR_STATUS
+
+    Estimator status message including flags, innovation test ratios and estimated accuracies.
+    The flags message is an integer bitmask containing information on which EKF outputs are valid.
+    See the ESTIMATOR_STATUS_FLAGS enum definition for further information.
+    The innovation test ratios show the magnitude of the sensor innovation divided by the innovation check threshold.
+    Under normal operation the innovation test ratios should be below 0.5 with occasional values up to 1.0.
+    Values greater than 1.0 should be rare under normal operation and indicate that a measurement has been rejected by the filter.
+    The user should be notified if an innovation test ratio greater than 1.0 is recorded.
+    Notifications for values in the range between 0.5 and 1.0 should be optional and controllable by the user.
+    '''
+
+    name = 'ESTIMATOR_STATUS'
+    fields_desc = {
+        LELongField('time_usec', 0x00),
+        FlagsField('flags', 0x0000, 16, list(ESTIMATOR_STATUS_FLAGS.values()) + 4*['-']),
+        LEFloatField('vel_ratio', 0x00),
+        LEFloatField('pos_horiz_ratio', 0x00),
+        LEFloatField('pos_vert_ratio', 0x00),
+        LEFloatField('mag_ratio', 0x00),
+        LEFloatField('hagl_ratio', 0x00),
+        LEFloatField('tas_ratio', 0x00),
+        LEFloatField('pos_horiz_accuracy', 0x00),
+        LEFloatField('pos_vert_accuracy', 0x00),
+    }
+
+# MESSAGE ID: 231
+class WindCov(Packet):
+    '''
+    Message ID:   231 -> WIND_COV
+
+    Wind covariance estimate from vehicle.
+    '''
+
+    name = 'WIND_COV'
+    fields_desc = {
+        LELongField('time_usec', 0x00),
+        LEFloatField('wind_x', 0x00),
+        LEFloatField('wind_y', 0x00),
+        LEFloatField('wind_z', 0x00),
+        LEFloatField('var_horiz', 0x00),
+        LEFloatField('var_vert', 0x00),
+        LEFloatField('wind_alt', 0x00),
+        LEFloatField('horiz_accuracy', 0x00),
+        LEFloatField('vert_accuracy', 0x00),
+    }
+
+# MESSAGE ID: 232
+class GPSInput(Packet):
+    '''
+    Message ID:   232 -> GPS_INPUT
+
+    GPS sensor input message.
+    This is a raw sensor value sent by the GPS.
+    This is NOT the global position estimate of the system.
+    '''
+
+    name = 'GPS_INPUT'
+    fields_desc = {
+        LELongField('time_usec', 0x00),
+        ByteField('gps_id', 0x00),
+        FlagsField('ignore_flags', 0x0000, 16, list(GPS_INPUT_INGORE_FLAGS.values()) + (16-len(GPS_INPUT_INGORE_FLAGS))*['-']),
+        LEIntField('time_week_ms', 0x00),
+        LEShortField('time_week', 0x00),
+        ByteEnumField('fix_type', 0x00, {0: 'No fix', 1: 'No fix', 2: '2D', 3: '3D', 4: '3D DGPS', 5: '3D RTK'}),
+        WGS84('lat', 0x00),
+        WGS84('lon', 0x00),
+        LEFloatField('alt', 0x00),
+        LEFloatField('hdop', 0x00),
+        LEFloatField('vdop', 0x00),
+        LEFloatField('vn', 0x00),
+        LEFloatField('ve', 0x00),
+        LEFloatField('vd', 0x00),
+        LEFloatField('speed_accuracy', 0x00),
+        LEFloatField('horiz_accuracy', 0x00),
+        LEFloatField('vert_accuracy', 0x00),
+        ByteField('satellites_visible', 0x00),
+    }
+
+# MESSAGE ID: 233
+class GPSRTCMData(Packet):
+    '''
+    Message ID:   233 -> GPS_RTCM_DATA
+
+    RTCM message for injecting into the onboard GPS (used for DGPS)
+    '''
+
+    name = 'GPS_RTCM_DATA'
+    fields_desc = {
+        XByteField('flags', 0x00),
+        ByteField('len', 0x00),
+        FieldListField('data', None, XByteField, count_from=lambda x: 180),
+    }
+
+# MESSAGE ID: 234
+class HighLatency(Packet):
+    '''
+    Message ID:   234 -> HIGH_LATENCY
+
+    Message appropriate for high latency connections like Iridium
+    '''
+
+    name = 'HIGH_LATENCY'
+    fields_desc = {
+        FlagsField('base_mode', 0x01, 8, MAV_MODE_FLAG),
+        LEIntField('custom_mode', 0x00),
+        ByteEnumField('landed_state', 0x00, MAV_LANDED_STATE),
+        LESignedShortField('roll', 0x00),
+        LESignedShortField('pitch', 0x00),
+        LEShortField('heading', 0x00),
+        SignedByteField('throttle', 0x00),
+        LESignedShortField('heading_sp', 0x00),
+        WGS84('latitude', 0x00),
+        WGS84('longitude', 0x00),
+        LESignedShortField('altitude_amsl', 0x00),
+        LESignedShortField('altitude_sp', 0x00),
+        ByteField('airspeed', 0x00),
+        ByteField('airspeed_sp', 0x00),
+        ByteField('groundspeed', 0x00),
+        SignedByteField('climb_rate', 0x00),
+        ByteField('gps_nsat', 0x00),
+        ByteEnumField('gps_fix_type', 0x00, GPS_FIX_TYPE),
+        ByteField('battery_remaining', 0x00),
+        SignedByteField('temperature', 0x00),
+        SignedByteField('temperature_air', 0x00),
+        FlagsField('failsafe', 0x00, 8, ['RC', 'batt', 'GPS', 'GCS', 'fence', '-', '-', '-']),
+        ByteField('wp_num', 0x00),
+        LEShortField('wp_distance', 0x00),
+    }
+
+# MESSAGE ID: 241
+class Vibration(Packet):
+    '''
+    Message ID:  241 -> VIBRATION
+
+    Vibration levels and accelerometer clipping
+    '''
+
+    name = 'VIBRATION'
+    fields_desc = {
+        LELongField('time_usec', 0x00),
+        LEFloatField('vibration_x', 0x00),
+        LEFloatField('vibration_y', 0x00),
+        LEFloatField('vibration_z', 0x00),
+        LEIntField('clipping_0', 0x00),
+        LEIntField('clipping_1', 0x00),
+        LEIntField('clipping_2', 0x00),
+    }
+
+# MESSAGE ID: 242
+class HomePosition(Packet):
+    '''
+    Message ID:   242 -> HOME_POSITION
+
+    This message can be requested by sending the MAV_CMD_GET_HOME_POSITION command.
+    The position the system will return to and land on.
+    The position is set automatically by the system during the takeoff in case it was not explicitly set by the operator before or after.
+    The position the system will return to and land on.
+    The global and local positions encode the position in the respective coordinate frames, while the q parameter encodes the orientation of the surface.
+    Under normal conditions it describes the heading and terrain slope, which can be used by the aircraft to adjust the approach.
+    The approach 3D vector describes the point to which the system should fly in normal flight mode and then perform a landing sequence along the vector.
+    '''
+
+    name = 'HOME_POSITION'
+    fields_desc = {
+        WGS84('latitude', 0x00),
+        WGS84('longitude', 0x00),
+        LESignedIntField('altitude', 0x00),
+        LEFloatField('x', 0x00),
+        LEFloatField('y', 0x00),
+        LEFloatField('z', 0x00),
+        FieldListField('q', None, LEFloatField, count_from=lambda x: 4),
+        LEFloatField('approach_x', 0x00),
+        LEFloatField('approach_y', 0x00),
+        LEFloatField('approach_z', 0x00),
+        ConditionalField(LELongField('time_usec', 0x00), lambda pkt: len(pkt.original) == 60),
+    }
+
+# MESSAGE ID: 243
+class SetHomePosition(Packet):
+    '''
+    Message ID:   243 -> SET_HOME_POSITION
+
+    The position the system will return to and land on.
+    The position is set automatically by the system during the takeoff in case it was not explicitly set by the operator before or after.
+    The global and local positions encode the position in the respective coordinate frames, while the q parameter encodes the orientation of the surface.
+    Under normal conditions it describes the heading and terrain slope, which can be used by the aircraft to adjust the approach.
+    The approach 3D vector describes the point to which the system should fly in normal flight mode and then perform a landing sequence along the vector.
+    '''
+
+    name = 'SET_HOME_POSITION'
+    fields_desc = {
+        XByteField('target_system', 0x00),
+        WGS84('latitude', 0x00),
+        WGS84('longitude', 0x00),
+        LESignedIntField('altitude', 0x00),
+        LEFloatField('x', 0x00),
+        LEFloatField('y', 0x00),
+        LEFloatField('z', 0x00),
+        FieldListField('q', None, LEFloatField, count_from=lambda x: 4),
+        LEFloatField('approach_x', 0x00),
+        LEFloatField('approach_y', 0x00),
+        LEFloatField('approach_z', 0x00),
+        ConditionalField(LELongField('time_usec', 0x00), lambda pkt: len(pkt.original) == 61),
+    }
+
+# MESSAGE ID: 244
+class MessageInterval(Packet):
+    '''
+    Message ID:   244 -> MESSAGE_INTERVAL
+
+    The interval between messages for a particular MAVLink message ID.
+    This message is the response to the MAV_CMD_GET_MESSAGE_INTERVAL command.
+    This interface replaces DATA_STREAM.
+    '''
+
+    name = 'MESSAGE_INTERVAL'
+    fields_desc = {
+        LEShortField('message_id', 0x00),
+        LESignedIntField('interval_us', 0x00),
+    }
+
+# MESSAGE ID: 245
+class ExtendedSysState(Packet):
+    '''
+    Message ID:   245 -> EXTENDED_SYS_STATE
+
+    Provides state for additional features
+    '''
+
+    name = 'EXTENDED_SYS_STATE'
+    fields_desc = {
+        ByteEnumField('vtol_state', 0x00, MAV_VTOL_STATE),
+        ByteEnumField('landed_state', 0x00, MAV_LANDED_STATE),
+    }
+
+# MESSAGE ID: 246
+class ADSBVehicle(Packet):
+    '''
+    Message ID:   246 -> ADSB_VEHICLE
+
+    The location and information of an ADSB vehicle
+    '''
+
+    name = 'ADSB_VEHICLE'
+    fields_desc = {
+        LEIntField('ICAO_address', 0x00),
+        WGS84('latitude', 0x00),
+        WGS84('longitude', 0x00),
+        ByteEnumField('altitude_type', 0x00, ADSB_ALTITUDE_TYPE),
+        LESignedIntField('altitude', 0x00),
+        LEShortField('heading', 0x00),
+        LEShortField('hor_velocity', 0x00),
+        LESignedShortField('ver_velocity', 0x00),
+        StrFixedLenField('callsign', '', length=9),
+        ByteEnumField('emitter_type', 0x00, ADSB_EMITTER_TYPE),
+        ByteField('tslc', 0x00),
+        FlagsField('flags', 0x00, 16, list(ADSB_FLAGS.values()) + (16-len(ADSB_FLAGS))*['-']),
+        LEShortField('squawk', 0x00),
+    }
+
+# MESSAGE ID: 247
+class Collision(Packet):
+    '''
+    Message ID:   247 -> COLLISION
+
+    Information about a potential collision
+    '''
+
+    name = 'COLLISION'
+    fields_desc = {
+        ByteEnumField('src', 0x00, MAV_COLLISION_SRC),
+        LEIntField('id', 0x00),
+        ByteEnumField('action', 0x00, MAV_COLLISION_ACTION),
+        ByteEnumField('threat_level', 0x00, MAV_COLLISION_THREAT_LEVEL),
+        LEFloatField('time_to_minimum_delta', 0x00),
+        LEFloatField('altitude_minimum_delta', 0x00),
+        LEFloatField('horizontal_minimum_delta', 0x00),
+    }
+
+# MESSAGE ID: 248
+class V2Extension(Packet):
+    '''
+    Message ID:   248 -> V2_EXTENSION
+
+    Message implementing parts of the V2 payload specs in V1 frames for transitional support.
+    '''
+
+    name = 'V2_EXTENSION'
+    fields_desc = {
+        XByteField('target_network', 0x00),
+        XByteField('target_system', 0x00),
+        XByteField('target_component', 0x00),
+        LEShortField('message_type', 0x00),
+        StrFixedLenField('payload', None, length=249),
+    }
+
+# MESSAGE ID: 249
+class MemoryVect(Packet):
+    '''
+    Message ID:   249 -> MEMORY_VECT
+
+    Send raw controller memory.
+    The use of this message is discouraged for normal packets, but a quite efficient way for testing new messages and getting experimental debug output.
+    '''
+
+    name = 'MEMORY_VECT'
+    fields_desc = {
+        LEShortField('address', 0x0000),
+        ByteField('ver', 0x00),
+        ByteField('type', 0x00),
+        StrFixedLenField('value', None, length=32),
+    }
+
+# MESSAGE ID: 250
+class DebugVect(Packet):
+    '''
+    Message ID:   250 -> DEBUG_VECT
+
+    To debug something using a named 3D vector.
+    '''
+
+    name = 'DEBUG_VECT'
+    fields_desc = {
+        StrFixedLenField('vname', b'\x00'*10, length=10),
+        LELongField('time_usec', 0x00),
+        LEFloatField('x', 0x00),
+        LEFloatField('y', 0x00),
+        LEFloatField('z', 0x00)
+    }
+
+# MESSAGE ID: 251
+class NamedValueFloat(Packet):
+    '''
+    Message ID:   251 -> NAMED_VALUE_FLOAT
+
+    Send a key-value pair as float.
+    The use of this message is discouraged for normal packets, but a quite efficient way for testing new messages and getting experimental debug output.
+    '''
+
+    name = 'NAMED_VALUE_FLOAT'
+    fields_desc = {
+        LEIntField('time_boot_ms', 0x00),
+        StrFixedLenField('fname', b'\x00'*10, length=10),
+        LEFloatField('value', 0x00)
+    }
+
+# MESSAGE ID: 252
+class NamedValueInt(Packet):
+    '''
+    Message ID:   252 -> NAMED_VALUE_INT
+
+    Send a key-value pair as integer.
+    The use of this message is discouraged for normal packets, but a quite efficient way for testing new messages and getting experimental debug output.
+    '''
+
+    name = 'NAMED_VALUE_INT'
+    fields_desc = {
+        LEIntField('time_boot_ms', 0x00),
+        StrFixedLenField('fname', b'\x00'*10, length=10),
+        LESignedIntField('value', 0x00)
+    }
+
+# MESSAGE ID: 253
+class StatusText(Packet):
+    '''
+    Message ID:   253 -> STATUSTEXT
+
+    Status text message.
+    These messages are printed in yellow in the COMM console of QGroundControl.
+    
+    WARNING: They consume quite some bandwidth, so use only for important status and error messages.
+    If implemented wisely, these messages are buffered on the MCU and sent only at a limited rate (e.g. 10 Hz).
+    '''
+
+    name = 'STATUSTEXT'
+    fields_desc = {
+        ByteEnumField('severity', 0x07, MAV_SEVERITY),
+        StrFixedLenField('text', b'\x00'*50, length=50)
+    }
+
+# MESSAGE ID: 254
+class Debug(Packet):
+    '''
+    Message ID:   254 -> DEBUG
+
+    Send a debug value.
+    The index is used to discriminate between values.
+    These values show up in the plot of QGroundControl as DEBUG N.
+    '''
+
+    name = 'DEBUG'
+    fields_desc = {
+        LEIntField('time_boot_ms', 0x00),
+        ByteField('ind', 0x00),
+        LEFloatField('value', 0x00)
+    }
+
+# MESSAGE ID: 256
+class SetupSigning(Packet):
+    '''
+    Message ID:   256 -> SETUP_SIGNING
+
+    (MAVLink 2) Setup a MAVLink2 signing key.
+    If called with secret_key of all zero and zero initial_timestamp will disable signing.
+    '''
+
+    name = 'SETUP_SIGNING'
+    fields_desc = {
+        XByteField('target_system', 0x00),
+        XByteField('target_component', 0x00),
+        StrFixedLenField('secret_key', b'\x00'*32, length=32),
+        LELongField('initial_timestamp', 0x00)
+    }
+
+# MESSAGE ID: 257
+class ButtonChange(Packet):
+    '''
+    Message ID:   257 -> BUTTON_CHANGE
+
+    (MAVLink 2) Report button state change.
+    '''
+
+    name = 'BUTTON_CHANGE'
+    fields_desc = {
+        LEIntField('time_boot_ms', 0x00),
+        LEIntField('last_change_ms', 0x00),
+        XByteField('state', 0x00)
+    }
+
+# MESSAGE ID: 258
+class PlayTune(Packet):
+    '''
+    Message ID:   258 -> PLAY_TUNE
+
+    (MAVLink 2) Control vehicle tone generation (buzzer)
+    '''
+    name = 'PLAY_TUNE'
+    fields_desc = {
+        XByteField('target_system', 0x00),
+        XByteField('target_component', 0x00),
+        TagField('tune', b'\x00'*30, count=30),
+        ConditionalField(TagField('tune2', b'\x00'*200, count=200),lambda pkt: len(pkt.original) > 32)
     }
 
 MESSAGES = {
@@ -2374,4 +2878,28 @@ MESSAGES = {
     144: FollowTarget,
     146: ControlSystemState,
     147: BatteryStatus,
+    148: AutopilotVersion,
+    149: LandingTarget,
+    162: FenceStatus,
+    230: EstimatorStatus,
+    231: WindCov,
+    232: GPSInput,
+    233: GPSRTCMData,
+    234: HighLatency,
+    241: Vibration,
+    242: HomePosition,
+    243: SetHomePosition,
+    244: MessageInterval,
+    245: ExtendedSysState,
+    246: ADSBVehicle,
+    247: Collision,
+    248: V2Extension,
+    249: MemoryVect,
+    250: DebugVect,
+    251: NamedValueFloat,
+    252: NamedValueInt,
+    253: StatusText,
+    254: Debug,
+    256: SetupSigning,
+    257: ButtonChange,
 }
